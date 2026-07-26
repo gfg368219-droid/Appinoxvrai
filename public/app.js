@@ -14,6 +14,36 @@ let progressInterval = null;
 let progressPct = 0;
 let isMuted = false;
 
+// ── Persistent Playback ───────────────────────────────────────────────────────
+const RESUME_KEY = 'appinox_resume';
+
+function saveProgress() {
+  if (!currentModalId || progressPct <= 1) return;
+  const item = CATALOG.find(c => c.id === currentModalId);
+  if (!item) return;
+  try {
+    localStorage.setItem(RESUME_KEY, JSON.stringify({
+      id: currentModalId,
+      progressPct,
+      title: item.title,
+      savedAt: Date.now(),
+    }));
+  } catch {}
+}
+
+function loadResume() {
+  try { return JSON.parse(localStorage.getItem(RESUME_KEY)); } catch { return null; }
+}
+
+function clearResume(id) {
+  const saved = loadResume();
+  if (!id || saved?.id === id) localStorage.removeItem(RESUME_KEY);
+}
+
+// Save when leaving the page
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveProgress(); });
+window.addEventListener('beforeunload', saveProgress);
+
 // ── Boot ──────────────────────────────────────────────────────────────────────
 (function boot() { runIntro(); })();
 
@@ -116,11 +146,41 @@ async function initApp() {
 
     renderHero();
     renderRows();
+    renderResumeRow();
     initHeroCanvas();
     initNavbarScroll();
   } catch (e) {
     console.error('initApp error:', e);
   }
+}
+
+function renderResumeRow() {
+  const resume = loadResume();
+  const rowEl = document.getElementById('row-resume');
+  const wrapEl = document.getElementById('resume-card-wrap');
+  if (!rowEl || !wrapEl) return;
+  if (!resume) { rowEl.style.display = 'none'; return; }
+  const item = CATALOG.find(c => c.id === resume.id);
+  if (!item) { rowEl.style.display = 'none'; return; }
+  rowEl.style.display = '';
+  const pct = Math.round(resume.progressPct);
+  wrapEl.innerHTML = `
+    <div class="resume-card" onclick="openModal('${item.id}')" style="cursor:pointer;display:flex;align-items:center;gap:18px;
+      background:rgba(255,255,255,0.04);border:1px solid rgba(191,64,255,0.18);border-radius:14px;
+      padding:14px 18px;max-width:480px;transition:background 0.2s;" onmouseenter="this.style.background='rgba(255,255,255,0.07)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
+      <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#0a0030,#1a0060);
+        display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(0,212,255,0.2)">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:20px;color:#00d4ff"><polygon points="5,3 19,12 5,21"/></svg>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:3px">${item.genre} · ${item.year} · <span style="color:var(--cyan)">${item.audio}</span></div>
+        <div style="height:3px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:8px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#00d4ff,#bf40ff);border-radius:3px"></div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--purple);font-weight:600;flex-shrink:0">${pct}%</div>
+    </div>`;
 }
 
 // ── HERO ──────────────────────────────────────────────────────────────────────
@@ -131,7 +191,7 @@ function renderHero() {
       <div class="hero-welcome">
         <div class="hero-badge"><span class="badge-icon">◆</span> BIENVENUE</div>
         <h1 class="hero-title">APPINOX</h1>
-        <p class="hero-desc">La plateforme de streaming est prête. Les contenus seront bientôt disponibles.</p>
+        <p class="hero-desc">Bienvenue sur APPINOX. Les contenus seront ajoutés par les administrateurs.</p>
       </div>`;
     return;
   }
@@ -612,17 +672,28 @@ function openModal(id) {
   document.getElementById('modal-watchlist-btn').textContent = watchlist.has(id) ? '✓ Dans ma liste' : '+ Ma liste';
   document.getElementById('video-modal').classList.remove('modal-hidden');
   document.body.style.overflow = 'hidden';
-  progressPct = 0;
+
+  // Restore saved progress if any
+  const resume = loadResume();
+  if (resume && resume.id === id && resume.progressPct > 1 && resume.progressPct < 98) {
+    progressPct = resume.progressPct;
+    showToast(`▶ Reprise à ${Math.round(progressPct)}%`);
+  } else {
+    progressPct = 0;
+  }
+
   setTimeout(() => { startPlayerCanvas(); startProgressTimer(item.duration); }, 100);
 }
 
 function closeModal() {
+  saveProgress(); // persist before closing
   document.getElementById('video-modal').classList.add('modal-hidden');
   document.body.style.overflow = '';
   isPlaying = false;
   if (playerRaf) cancelAnimationFrame(playerRaf);
   if (progressInterval) clearInterval(progressInterval);
   playerRaf = null; progressInterval = null; currentModalId = null;
+  renderResumeRow(); // refresh the "Continue watching" row
 }
 
 // ── PLAYER CANVAS ─────────────────────────────────────────────────────────────
@@ -721,16 +792,27 @@ function toggleFullscreen() {
 function startProgressTimer(duration) {
   if (progressInterval) clearInterval(progressInterval);
   const totalSec = parseDuration(duration);
+  let saveTick = 0;
+  // Apply any restored progress to the UI immediately
+  const fillEl = document.getElementById('progress-fill');
+  const thumbEl = document.getElementById('progress-thumb');
+  const ctEl = document.getElementById('current-time');
+  if (fillEl) fillEl.style.width = progressPct + '%';
+  if (thumbEl) thumbEl.style.left = progressPct + '%';
+  if (ctEl) ctEl.textContent = formatTime(Math.floor((progressPct / 100) * totalSec));
+
   progressInterval = setInterval(() => {
     if (!isPlaying) return;
     progressPct += (100 / totalSec) * 0.25;
-    if (progressPct >= 100) progressPct = 0;
+    if (progressPct >= 100) { progressPct = 0; clearResume(currentModalId); }
     const fill = document.getElementById('progress-fill');
     const thumb = document.getElementById('progress-thumb');
     const ct = document.getElementById('current-time');
     if (fill) fill.style.width = progressPct + '%';
     if (thumb) thumb.style.left = progressPct + '%';
     if (ct) ct.textContent = formatTime(Math.floor((progressPct / 100) * totalSec));
+    // Save to localStorage every ~5 seconds (20 ticks × 250ms)
+    if (++saveTick % 20 === 0) saveProgress();
   }, 250);
 }
 

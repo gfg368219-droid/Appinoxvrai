@@ -16,42 +16,45 @@
   <div id="intro-logo">
     <svg id="logo-icon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="iLF" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" style="stop-color:#00eeff"/>
-          <stop offset="60%" style="stop-color:#0088dd"/>
-          <stop offset="100%" style="stop-color:#3344cc"/>
-        </linearGradient>
-        <linearGradient id="iRF" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#110033"/>
-          <stop offset="100%" style="stop-color:#060015"/>
+        <linearGradient id="iLF" x1="75%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" style="stop-color:#c8f2ff"/>
+          <stop offset="20%" style="stop-color:#33ddff"/>
+          <stop offset="65%" style="stop-color:#0099ee"/>
+          <stop offset="100%" style="stop-color:#0055bb"/>
         </linearGradient>
         <linearGradient id="iIF" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#0066bb"/>
-          <stop offset="100%" style="stop-color:#003388"/>
+          <stop offset="0%" style="stop-color:#0077bb"/>
+          <stop offset="100%" style="stop-color:#004488"/>
+        </linearGradient>
+        <linearGradient id="iRF" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#0e0038"/>
+          <stop offset="100%" style="stop-color:#030012"/>
         </linearGradient>
         <linearGradient id="iAR" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" style="stop-color:#cc00ff"/>
-          <stop offset="100%" style="stop-color:#ff2d78"/>
+          <stop offset="0%" style="stop-color:#8800ee"/>
+          <stop offset="55%" style="stop-color:#cc00ff"/>
+          <stop offset="100%" style="stop-color:#ff0066"/>
         </linearGradient>
         <filter id="iGL"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        <filter id="iGA"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="iGA"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
       </defs>
-      <!-- Left bright face -->
-      <polygon points="60,8 14,106 38,106 60,58" fill="url(#iLF)" filter="url(#iGL)"/>
-      <!-- Left inner ridge (lighter facet) -->
-      <polygon points="60,8 60,44 38,106 14,106" fill="#33aaff" opacity="0.18"/>
-      <!-- Crossbar -->
-      <polygon points="24,80 90,80 84,65 30,65" fill="url(#iIF)" opacity="0.85"/>
-      <!-- Right dark face -->
-      <polygon points="60,8 106,106 82,106 60,58" fill="url(#iRF)" stroke="rgba(80,80,255,0.2)" stroke-width="0.7"/>
+      <!-- Right dark face (behind) -->
+      <polygon points="60,10 112,110 84,110 60,54" fill="url(#iRF)" stroke="rgba(60,60,180,0.15)" stroke-width="0.6"/>
       <!-- Right inner shadow -->
-      <polygon points="60,8 82,106 106,106" fill="#04000e" opacity="0.6"/>
-      <!-- Arrow shaft -->
-      <line x1="50" y1="96" x2="95" y2="24" stroke="url(#iAR)" stroke-width="9" stroke-linecap="round" filter="url(#iGA)"/>
-      <!-- Arrow head -->
-      <polygon points="95,24 72,32 88,52" fill="#ff2d78" filter="url(#iGA)"/>
-      <!-- Arrow head highlight -->
-      <polygon points="95,24 78,28 86,38" fill="#ff80aa" opacity="0.5"/>
+      <polygon points="60,10 84,110 112,110" fill="#020008" opacity="0.7"/>
+      <!-- Left bright face -->
+      <polygon points="60,10 8,110 36,110 60,54" fill="url(#iLF)" filter="url(#iGL)"/>
+      <!-- Left face inner highlight ridge -->
+      <polygon points="60,10 60,50 36,110 8,110" fill="#44ccff" opacity="0.14"/>
+      <line x1="60" y1="10" x2="36" y2="110" stroke="rgba(160,235,255,0.35)" stroke-width="1.2"/>
+      <!-- Crossbar -->
+      <polygon points="22,82 92,82 86,66 28,66" fill="url(#iIF)" opacity="0.92"/>
+      <!-- Arrow shaft — thick, prominent, with strong glow -->
+      <line x1="42" y1="106" x2="97" y2="8" stroke="url(#iAR)" stroke-width="12" stroke-linecap="round" filter="url(#iGA)"/>
+      <!-- Arrow head — large, pointing upper-right -->
+      <polygon points="97,8 70,22 84,48" fill="#ff0066" filter="url(#iGA)"/>
+      <!-- Arrow head inner highlight -->
+      <polygon points="97,8 73,18 82,36" fill="#ff99cc" opacity="0.55"/>
     </svg>
     <div id="intro-wordmark">
       <span>A</span><span>P</span><span>P</span><span>I</span><span>N</span><span>O</span><span>X</span>
@@ -69,18 +72,30 @@
       <div class="nav-logo">
         <svg viewBox="0 0 70 70" xmlns="http://www.w3.org/2000/svg" class="nav-icon">
           <defs>
-            <linearGradient id="nLF" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" style="stop-color:#00eeff"/><stop offset="100%" style="stop-color:#3344cc"/>
+            <linearGradient id="nLF" x1="75%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#c8f2ff"/>
+              <stop offset="20%" style="stop-color:#33ddff"/>
+              <stop offset="65%" style="stop-color:#0099ee"/>
+              <stop offset="100%" style="stop-color:#0055bb"/>
+            </linearGradient>
+            <linearGradient id="nIF" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#0077bb"/><stop offset="100%" style="stop-color:#004488"/>
             </linearGradient>
             <linearGradient id="nAR" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" style="stop-color:#cc00ff"/><stop offset="100%" style="stop-color:#ff2d78"/>
+              <stop offset="0%" style="stop-color:#8800ee"/>
+              <stop offset="55%" style="stop-color:#cc00ff"/>
+              <stop offset="100%" style="stop-color:#ff0066"/>
             </linearGradient>
+            <filter id="nGL"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <filter id="nGA"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
           </defs>
-          <polygon points="35,5 8,62 22,62 35,34" fill="url(#nLF)"/>
-          <polygon points="35,5 62,62 48,62 35,34" fill="#110033" stroke="rgba(80,80,255,0.18)" stroke-width="0.5"/>
-          <polygon points="14,47 53,47 49,38 18,38" fill="url(#nLF)" opacity="0.8"/>
-          <line x1="29" y1="56" x2="55" y2="14" stroke="url(#nAR)" stroke-width="5.5" stroke-linecap="round"/>
-          <polygon points="55,14 42,19 51,30" fill="#ff2d78"/>
+          <polygon points="35,6 65,64 49,64 35,32" fill="#0e0038" stroke="rgba(60,60,180,0.15)" stroke-width="0.5"/>
+          <polygon points="35,6 5,64 21,64 35,32" fill="url(#nLF)" filter="url(#nGL)"/>
+          <line x1="35" y1="6" x2="21" y2="64" stroke="rgba(160,235,255,0.3)" stroke-width="0.8"/>
+          <polygon points="13,48 54,48 50,38 16,38" fill="url(#nIF)" opacity="0.9"/>
+          <line x1="24" y1="62" x2="56" y2="5" stroke="url(#nAR)" stroke-width="7" stroke-linecap="round" filter="url(#nGA)"/>
+          <polygon points="56,5 40,13 49,28" fill="#ff0066" filter="url(#nGA)"/>
+          <polygon points="56,5 42,10 48,21" fill="#ff99cc" opacity="0.5"/>
         </svg>
         <span class="nav-wordmark">APPINOX</span>
       </div>
@@ -159,6 +174,14 @@
         <!-- filled by JS -->
       </div>
     </section>
+
+    <!-- CONTINUE WATCHING -->
+    <div id="row-resume" style="display:none;padding:0 60px 0;margin-top:24px;">
+      <div class="row-header">
+        <h2 class="row-title"><span class="title-accent" style="color:#00d4ff">▶</span> Reprendre</h2>
+      </div>
+      <div id="resume-card-wrap"></div>
+    </div>
 
     <main id="content">
       <section class="content-row" id="row-trending">
@@ -367,18 +390,26 @@
     <div class="footer-logo">
       <svg viewBox="0 0 70 70" xmlns="http://www.w3.org/2000/svg" class="footer-icon">
         <defs>
-          <linearGradient id="fLF" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" style="stop-color:#00eeff"/><stop offset="100%" style="stop-color:#3344cc"/>
+          <linearGradient id="fLF" x1="75%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#c8f2ff"/>
+            <stop offset="20%" style="stop-color:#33ddff"/>
+            <stop offset="65%" style="stop-color:#0099ee"/>
+            <stop offset="100%" style="stop-color:#0055bb"/>
+          </linearGradient>
+          <linearGradient id="fIF" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#0077bb"/><stop offset="100%" style="stop-color:#004488"/>
           </linearGradient>
           <linearGradient id="fAR" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" style="stop-color:#cc00ff"/><stop offset="100%" style="stop-color:#ff2d78"/>
+            <stop offset="0%" style="stop-color:#8800ee"/>
+            <stop offset="55%" style="stop-color:#cc00ff"/>
+            <stop offset="100%" style="stop-color:#ff0066"/>
           </linearGradient>
         </defs>
-        <polygon points="35,5 8,62 22,62 35,34" fill="url(#fLF)" opacity="0.65"/>
-        <polygon points="35,5 62,62 48,62 35,34" fill="#110033" opacity="0.65"/>
-        <polygon points="14,47 53,47 49,38 18,38" fill="url(#fLF)" opacity="0.5"/>
-        <line x1="29" y1="56" x2="55" y2="14" stroke="url(#fAR)" stroke-width="5.5" stroke-linecap="round" opacity="0.7"/>
-        <polygon points="55,14 42,19 51,30" fill="#ff2d78" opacity="0.7"/>
+        <polygon points="35,6 65,64 49,64 35,32" fill="#0e0038" opacity="0.6"/>
+        <polygon points="35,6 5,64 21,64 35,32" fill="url(#fLF)" opacity="0.7"/>
+        <polygon points="13,48 54,48 50,38 16,38" fill="url(#fIF)" opacity="0.55"/>
+        <line x1="24" y1="62" x2="56" y2="5" stroke="url(#fAR)" stroke-width="6" stroke-linecap="round" opacity="0.75"/>
+        <polygon points="56,5 40,13 49,28" fill="#ff0066" opacity="0.75"/>
       </svg>
       <span>APPINOX</span>
     </div>
@@ -388,7 +419,7 @@
       <a href="#">Cookies</a>
       <a href="#">Centre d'aide</a>
     </div>
-    <p class="footer-copy">© 2026 APPINOX Streaming, Inc. Tous droits réservés.</p>
+    <p class="footer-copy">© 2026 APPINOX. Tous droits réservés.</p>
   </footer>
 </div>
 

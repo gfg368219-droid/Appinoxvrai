@@ -15,28 +15,42 @@
     <a href="/login" class="auth-logo">
       <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" class="auth-icon">
         <defs>
-          <linearGradient id="g1" x1="0%" y1="100%" x2="60%" y2="0%">
-            <stop offset="0%" style="stop-color:#00d4ff"/>
-            <stop offset="100%" style="stop-color:#5a1fff"/>
+          <linearGradient id="g1" x1="75%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" style="stop-color:#c8f2ff"/>
+            <stop offset="20%" style="stop-color:#33ddff"/>
+            <stop offset="65%" style="stop-color:#0099ee"/>
+            <stop offset="100%" style="stop-color:#0055bb"/>
           </linearGradient>
-          <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:#7b2fff"/>
-            <stop offset="100%" style="stop-color:#ff2d78"/>
+          <linearGradient id="g1b" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#0077bb"/><stop offset="100%" style="stop-color:#004488"/>
+          </linearGradient>
+          <linearGradient id="g2" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#8800ee"/>
+            <stop offset="55%" style="stop-color:#cc00ff"/>
+            <stop offset="100%" style="stop-color:#ff0066"/>
           </linearGradient>
           <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="garrw"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
         </defs>
-        <polygon points="40,6 10,70 30,70 40,40" fill="url(#g1)" filter="url(#glow)"/>
-        <polygon points="40,6 70,70 50,70 40,40" fill="#1a0050" stroke="rgba(0,212,255,0.3)" stroke-width="0.5"/>
-        <polygon points="22,52 58,52 55,44 25,44" fill="url(#g1)" opacity="0.7"/>
-        <line x1="44" y1="58" x2="66" y2="22" stroke="url(#g2)" stroke-width="6" stroke-linecap="round" filter="url(#glow)"/>
-        <polygon points="66,22 52,26 62,38" fill="#ff2d78" filter="url(#glow)"/>
+        <!-- Right dark face -->
+        <polygon points="40,7 74,73 56,73 40,36" fill="#0e0038" stroke="rgba(60,60,180,0.15)" stroke-width="0.5"/>
+        <!-- Left bright face -->
+        <polygon points="40,7 6,73 24,73 40,36" fill="url(#g1)" filter="url(#glow)"/>
+        <line x1="40" y1="7" x2="24" y2="73" stroke="rgba(160,235,255,0.3)" stroke-width="1"/>
+        <!-- Crossbar -->
+        <polygon points="15,55 62,55 58,44 19,44" fill="url(#g1b)" opacity="0.9"/>
+        <!-- Arrow shaft -->
+        <line x1="28" y1="72" x2="64" y2="6" stroke="url(#g2)" stroke-width="9" stroke-linecap="round" filter="url(#garrw)"/>
+        <!-- Arrow head -->
+        <polygon points="64,6 46,15 56,32" fill="#ff0066" filter="url(#garrw)"/>
+        <polygon points="64,6 48,12 55,24" fill="#ff99cc" opacity="0.55"/>
       </svg>
       <span class="auth-wordmark">APPINOX</span>
     </a>
 
     <div class="auth-card">
       <h1 class="auth-title">Créer un compte</h1>
-      <p class="auth-subtitle">Rejoignez la plateforme APPINOX</p>
+      <p class="auth-subtitle">Créez votre compte APPINOX</p>
 
       <div id="error-msg" class="error-banner" style="display:none"></div>
       <div id="success-msg" class="success-banner" style="display:none"></div>
@@ -116,7 +130,7 @@
       </p>
     </div>
 
-    <p class="auth-footer">© 2026 APPINOX Streaming, Inc.</p>
+    <p class="auth-footer">© 2026 APPINOX</p>
   </div>
 
   <script src="auth.js"></script>
