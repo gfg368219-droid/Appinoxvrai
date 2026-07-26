@@ -302,37 +302,60 @@ app.get('/api/admin/auto-search', requireAuth, requireAdmin, async (req, res) =>
   const q = (req.query.q || '').trim();
   if (!q) return res.json({ results: [] });
   try {
-    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=all&entity=movie,tvSeason&limit=16&country=fr`;
-    const r = await fetch(url, { headers: { 'User-Agent': 'APPINOX/1.0' } });
-    const data = await r.json();
+    const headers = { 'User-Agent': 'APPINOX/1.0' };
+    const [moviesRes, tvRes] = await Promise.all([
+      fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=movie&entity=movie&limit=10&country=fr`, { headers }),
+      fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=tvShow&entity=tvSeason&limit=10&country=fr`, { headers }),
+    ]);
+    const [moviesData, tvData] = await Promise.all([moviesRes.json(), tvRes.json()]);
+
     const seen = new Set();
-    const results = (data.results || [])
-      .filter(x => x.kind === 'feature-movie' || x.collectionType === 'TV Season')
-      .map(x => {
-        const isTV = x.collectionType === 'TV Season';
-        let title = isTV
-          ? (x.artistName || (x.collectionName || '').replace(/,\s*(saison|season)\s*\d+/i, ''))
-          : (x.trackName || '');
-        title = title.trim();
-        const key = title.toLowerCase() + isTV;
-        if (!title || seen.has(key)) return null;
-        seen.add(key);
-        const poster = (x.artworkUrl100 || '').replace('100x100bb', '600x600bb');
-        const year   = (x.releaseDate || '').slice(0, 4);
-        const durationMs = x.trackTimeMillis || null;
-        return {
-          itunesId: isTV ? String(x.collectionId) : String(x.trackId),
-          title,
-          type: isTV ? 'serie' : 'film',
-          year,
-          overview: x.longDescription || x.description || '',
-          poster:   poster || null,
-          genre:    x.primaryGenreName || '',
-          durationMs,
-        };
-      })
-      .filter(Boolean)
-      .slice(0, 8);
+
+    function mapMovie(x) {
+      const title = (x.trackName || x.collectionName || '').trim();
+      const key = title.toLowerCase() + 'film';
+      if (!title || seen.has(key)) return null;
+      seen.add(key);
+      return {
+        itunesId: String(x.trackId || x.collectionId),
+        title,
+        type: 'film',
+        year: (x.releaseDate || '').slice(0, 4),
+        overview: x.longDescription || x.description || '',
+        poster: (x.artworkUrl100 || '').replace('100x100bb', '600x600bb') || null,
+        genre: x.primaryGenreName || '',
+        durationMs: x.trackTimeMillis || null,
+      };
+    }
+
+    function mapTV(x) {
+      let title = (x.collectionName || x.artistName || '').replace(/,?\s*(saison|season)\s*\d+/i, '').trim();
+      const key = title.toLowerCase() + 'serie';
+      if (!title || seen.has(key)) return null;
+      seen.add(key);
+      return {
+        itunesId: String(x.collectionId),
+        title,
+        type: 'serie',
+        year: (x.releaseDate || '').slice(0, 4),
+        overview: x.longDescription || x.description || '',
+        poster: (x.artworkUrl100 || '').replace('100x100bb', '600x600bb') || null,
+        genre: x.primaryGenreName || '',
+        durationMs: x.trackTimeMillis || null,
+      };
+    }
+
+    const movies = (moviesData.results || []).map(mapMovie).filter(Boolean);
+    const tv     = (tvData.results || []).map(mapTV).filter(Boolean);
+
+    // Interleave films and series so both appear in results
+    const results = [];
+    const max = Math.max(movies.length, tv.length);
+    for (let i = 0; i < max && results.length < 10; i++) {
+      if (movies[i]) results.push(movies[i]);
+      if (tv[i] && results.length < 10) results.push(tv[i]);
+    }
+
     res.json({ results });
   } catch (err) {
     res.status(500).json({ error: 'Erreur de recherche: ' + err.message });
@@ -362,7 +385,7 @@ app.get('/api/admin/auto-detail/:id', requireAuth, requireAdmin, async (req, res
 });
 
 // ── API: Admin — Add content ──────────────────────────────────────────────────
-app.post('/api/admin/content', requireAuth, requireAdmin, (req, res) => {
+app.post('/api/admin/content', requireAuth, requireAdmin, uploadImage.none(), (req, res) => {
   const { title, genre, type, duration, year, audio, quality, description, trailerUrl, posterUrl, videoUrl } = req.body;
   let { rows, actors } = req.body;
 
