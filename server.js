@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
 
 const app = express();
 const PORT = 5000;
@@ -11,6 +12,23 @@ const DATA_DIR = path.join(__dirname, 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const CATALOG_FILE = path.join(DATA_DIR, 'catalog.json');
 const PUBLIC_CATALOG = path.join(__dirname, 'public', 'data', 'catalog.json');
+const VIDEOS_DIR = path.join(__dirname, 'public', 'videos');
+fs.mkdirSync(VIDEOS_DIR, { recursive: true });
+
+const videoStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, VIDEOS_DIR),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.mp4';
+    cb(null, 'v-' + uuidv4().slice(0, 8) + ext);
+  },
+});
+const uploadVideo = multer({
+  storage: videoStorage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('video/')) return cb(null, true);
+    cb(new Error('Format vidéo non supporté'));
+  },
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function loadJSON(file, fallback = []) {
@@ -192,8 +210,9 @@ app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
 });
 
 // ── API: Admin — Add content ──────────────────────────────────────────────────
-app.post('/api/admin/content', requireAuth, requireAdmin, (req, res) => {
-  const { title, genre, type, duration, year, rating, audio, quality, description, rows } = req.body;
+app.post('/api/admin/content', requireAuth, requireAdmin, uploadVideo.single('video'), (req, res) => {
+  const { title, genre, type, duration, year, rating, audio, quality, description } = req.body;
+  let { rows } = req.body;
   if (!title || !genre || !type || !audio)
     return res.status(400).json({ error: 'Titre, genre, type et audio sont obligatoires' });
 
@@ -204,13 +223,14 @@ app.post('/api/admin/content', requireAuth, requireAdmin, (req, res) => {
     genre: genre.trim(),
     type,
     duration: duration?.trim() || null,
-    year: year || new Date().getFullYear(),
+    year: parseInt(year) || new Date().getFullYear(),
     rating: rating ? parseFloat(rating) : null,
     audio,
     quality: quality || null,
     description: (description || '').trim(),
     rows: Array.isArray(rows) ? rows : (rows ? [rows] : []),
     addedAt: new Date().toISOString(),
+    videoUrl: req.file ? '/videos/' + req.file.filename : null,
   };
 
   catalog.unshift(newItem); // newest first
@@ -221,9 +241,14 @@ app.post('/api/admin/content', requireAuth, requireAdmin, (req, res) => {
 // ── API: Admin — Delete content ───────────────────────────────────────────────
 app.delete('/api/admin/content/:id', requireAuth, requireAdmin, (req, res) => {
   let catalog = loadCatalog();
-  const before = catalog.length;
+  const item = catalog.find(c => c.id === req.params.id);
+  if (!item) return res.status(404).json({ error: 'Contenu non trouvé' });
+  // Remove video file from disk if it exists
+  if (item.videoUrl) {
+    const filePath = path.join(__dirname, 'public', item.videoUrl);
+    try { fs.unlinkSync(filePath); } catch {}
+  }
   catalog = catalog.filter(c => c.id !== req.params.id);
-  if (catalog.length === before) return res.status(404).json({ error: 'Contenu non trouvé' });
   saveCatalog(catalog);
   res.json({ success: true, catalog });
 });

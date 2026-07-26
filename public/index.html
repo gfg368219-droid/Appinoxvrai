@@ -16,45 +16,44 @@
   <div id="intro-logo">
     <svg id="logo-icon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
       <defs>
-        <linearGradient id="iLF" x1="75%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" style="stop-color:#c8f2ff"/>
-          <stop offset="20%" style="stop-color:#33ddff"/>
-          <stop offset="65%" style="stop-color:#0099ee"/>
-          <stop offset="100%" style="stop-color:#0055bb"/>
-        </linearGradient>
-        <linearGradient id="iIF" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#0077bb"/>
-          <stop offset="100%" style="stop-color:#004488"/>
+        <linearGradient id="iLF" x1="70%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="#bbf0ff"/>
+          <stop offset="25%" stop-color="#22ccff"/>
+          <stop offset="65%" stop-color="#0088ee"/>
+          <stop offset="100%" stop-color="#0050aa"/>
         </linearGradient>
         <linearGradient id="iRF" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#0e0038"/>
-          <stop offset="100%" style="stop-color:#030012"/>
+          <stop offset="0%" stop-color="#1c0065"/>
+          <stop offset="100%" stop-color="#090030"/>
         </linearGradient>
         <linearGradient id="iAR" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" style="stop-color:#8800ee"/>
-          <stop offset="55%" style="stop-color:#cc00ff"/>
-          <stop offset="100%" style="stop-color:#ff0066"/>
+          <stop offset="0%" stop-color="#7700cc"/>
+          <stop offset="50%" stop-color="#cc00ff"/>
+          <stop offset="100%" stop-color="#ff0066"/>
         </linearGradient>
-        <filter id="iGL"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        <filter id="iGA"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="iGL"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="iGA"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
       </defs>
-      <!-- Right dark face (behind) -->
-      <polygon points="60,10 112,110 84,110 60,54" fill="url(#iRF)" stroke="rgba(60,60,180,0.15)" stroke-width="0.6"/>
-      <!-- Right inner shadow -->
-      <polygon points="60,10 84,110 112,110" fill="#020008" opacity="0.7"/>
-      <!-- Left bright face -->
-      <polygon points="60,10 8,110 36,110 60,54" fill="url(#iLF)" filter="url(#iGL)"/>
-      <!-- Left face inner highlight ridge -->
-      <polygon points="60,10 60,50 36,110 8,110" fill="#44ccff" opacity="0.14"/>
-      <line x1="60" y1="10" x2="36" y2="110" stroke="rgba(160,235,255,0.35)" stroke-width="1.2"/>
+      <!-- Inner floor of cutout (bottom triangle inside A) -->
+      <polygon points="60,52 34,112 86,112" fill="#0a4580"/>
+      <!-- Right face — medium-dark indigo -->
+      <polygon points="60,10 112,112 86,112 60,52" fill="url(#iRF)"/>
+      <!-- Left bright face — cyan gradient -->
+      <polygon points="60,10 8,112 34,112 60,52" fill="url(#iLF)" filter="url(#iGL)"/>
+      <!-- Left face inner facet (secondary highlight) -->
+      <polygon points="60,10 60,50 34,112 8,112" fill="#33aaff" opacity="0.12"/>
+      <!-- Ridge line on inner edge -->
+      <line x1="60" y1="10" x2="34" y2="112" stroke="rgba(180,240,255,0.38)" stroke-width="1.2"/>
       <!-- Crossbar -->
-      <polygon points="22,82 92,82 86,66 28,66" fill="url(#iIF)" opacity="0.92"/>
-      <!-- Arrow shaft — thick, prominent, with strong glow -->
-      <line x1="42" y1="106" x2="97" y2="8" stroke="url(#iAR)" stroke-width="12" stroke-linecap="round" filter="url(#iGA)"/>
-      <!-- Arrow head — large, pointing upper-right -->
-      <polygon points="97,8 70,22 84,48" fill="#ff0066" filter="url(#iGA)"/>
-      <!-- Arrow head inner highlight -->
-      <polygon points="97,8 73,18 82,36" fill="#ff99cc" opacity="0.55"/>
+      <polygon points="26,80 94,80 98,66 22,66" fill="#0a4580" opacity="0.95"/>
+      <!-- Arrow shaft — very thick, strong glow -->
+      <line x1="40" y1="110" x2="97" y2="9" stroke="url(#iAR)" stroke-width="13" stroke-linecap="round" filter="url(#iGA)"/>
+      <!-- Arrowhead front face (bright pink/magenta) -->
+      <polygon points="97,9 70,24 82,48" fill="#ff0066" filter="url(#iGA)"/>
+      <!-- Arrowhead side face (purple — 3D kite effect) -->
+      <polygon points="97,9 62,28 70,24" fill="#cc00ff" opacity="0.88"/>
+      <!-- Arrow tip highlight -->
+      <polygon points="97,9 72,20 80,34" fill="#ff88cc" opacity="0.5"/>
     </svg>
     <div id="intro-wordmark">
       <span>A</span><span>P</span><span>P</span><span>I</span><span>N</span><span>O</span><span>X</span>
@@ -72,30 +71,33 @@
       <div class="nav-logo">
         <svg viewBox="0 0 70 70" xmlns="http://www.w3.org/2000/svg" class="nav-icon">
           <defs>
-            <linearGradient id="nLF" x1="75%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:#c8f2ff"/>
-              <stop offset="20%" style="stop-color:#33ddff"/>
-              <stop offset="65%" style="stop-color:#0099ee"/>
-              <stop offset="100%" style="stop-color:#0055bb"/>
+            <linearGradient id="nLF" x1="70%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#bbf0ff"/>
+              <stop offset="25%" stop-color="#22ccff"/>
+              <stop offset="65%" stop-color="#0088ee"/>
+              <stop offset="100%" stop-color="#0050aa"/>
             </linearGradient>
-            <linearGradient id="nIF" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#0077bb"/><stop offset="100%" style="stop-color:#004488"/>
+            <linearGradient id="nRF" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#1c0065"/><stop offset="100%" stop-color="#090030"/>
             </linearGradient>
             <linearGradient id="nAR" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" style="stop-color:#8800ee"/>
-              <stop offset="55%" style="stop-color:#cc00ff"/>
-              <stop offset="100%" style="stop-color:#ff0066"/>
+              <stop offset="0%" stop-color="#7700cc"/>
+              <stop offset="50%" stop-color="#cc00ff"/>
+              <stop offset="100%" stop-color="#ff0066"/>
             </linearGradient>
-            <filter id="nGL"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-            <filter id="nGA"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <filter id="nGL"><feGaussianBlur stdDeviation="1.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <filter id="nGA"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
           </defs>
-          <polygon points="35,6 65,64 49,64 35,32" fill="#0e0038" stroke="rgba(60,60,180,0.15)" stroke-width="0.5"/>
-          <polygon points="35,6 5,64 21,64 35,32" fill="url(#nLF)" filter="url(#nGL)"/>
-          <line x1="35" y1="6" x2="21" y2="64" stroke="rgba(160,235,255,0.3)" stroke-width="0.8"/>
-          <polygon points="13,48 54,48 50,38 16,38" fill="url(#nIF)" opacity="0.9"/>
-          <line x1="24" y1="62" x2="56" y2="5" stroke="url(#nAR)" stroke-width="7" stroke-linecap="round" filter="url(#nGA)"/>
-          <polygon points="56,5 40,13 49,28" fill="#ff0066" filter="url(#nGA)"/>
-          <polygon points="56,5 42,10 48,21" fill="#ff99cc" opacity="0.5"/>
+          <polygon points="35,30 20,65 50,65" fill="#0a4580"/>
+          <polygon points="35,6 65,65 50,65 35,30" fill="url(#nRF)"/>
+          <polygon points="35,6 5,65 20,65 35,30" fill="url(#nLF)" filter="url(#nGL)"/>
+          <polygon points="35,6 35,29 20,65 5,65" fill="#33aaff" opacity="0.11"/>
+          <line x1="35" y1="6" x2="20" y2="65" stroke="rgba(180,240,255,0.35)" stroke-width="0.7"/>
+          <polygon points="15,47 55,47 57,38 13,38" fill="#0a4580" opacity="0.92"/>
+          <line x1="23" y1="64" x2="57" y2="5" stroke="url(#nAR)" stroke-width="7.5" stroke-linecap="round" filter="url(#nGA)"/>
+          <polygon points="57,5 41,14 48,28" fill="#ff0066" filter="url(#nGA)"/>
+          <polygon points="57,5 36,16 41,14" fill="#cc00ff" opacity="0.88"/>
+          <polygon points="57,5 42,11 47,20" fill="#ff88cc" opacity="0.5"/>
         </svg>
         <span class="nav-wordmark">APPINOX</span>
       </div>
@@ -342,6 +344,20 @@
           <label class="form-label">Description</label>
           <textarea id="f-desc" class="form-textarea" placeholder="Synopsis, description du contenu…"></textarea>
         </div>
+        <div class="form-group full-width">
+          <label class="form-label">Fichier vidéo <span style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0">(optionnel)</span></label>
+          <label class="video-upload-label" id="video-upload-label">
+            <input type="file" id="f-video" accept="video/*" style="display:none" onchange="onVideoFileChosen(this)"/>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:22px;height:22px;color:var(--purple)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span id="video-file-label-text">Choisir un fichier vidéo (mp4, mkv, avi…)</span>
+          </label>
+          <div id="video-upload-progress" style="display:none;margin-top:8px">
+            <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
+              <div id="video-progress-bar" style="height:100%;width:0%;background:var(--grad);border-radius:3px;transition:width 0.3s"></div>
+            </div>
+            <div id="video-progress-text" style="font-size:11px;color:var(--text-dim);margin-top:5px">Upload en cours…</div>
+          </div>
+        </div>
         <div class="form-group">
           <label class="form-label">Afficher dans</label>
           <div class="checkbox-row">
@@ -390,26 +406,28 @@
     <div class="footer-logo">
       <svg viewBox="0 0 70 70" xmlns="http://www.w3.org/2000/svg" class="footer-icon">
         <defs>
-          <linearGradient id="fLF" x1="75%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" style="stop-color:#c8f2ff"/>
-            <stop offset="20%" style="stop-color:#33ddff"/>
-            <stop offset="65%" style="stop-color:#0099ee"/>
-            <stop offset="100%" style="stop-color:#0055bb"/>
+          <linearGradient id="fLF" x1="70%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#bbf0ff"/>
+            <stop offset="25%" stop-color="#22ccff"/>
+            <stop offset="65%" stop-color="#0088ee"/>
+            <stop offset="100%" stop-color="#0050aa"/>
           </linearGradient>
-          <linearGradient id="fIF" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style="stop-color:#0077bb"/><stop offset="100%" style="stop-color:#004488"/>
+          <linearGradient id="fRF" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#1c0065"/><stop offset="100%" stop-color="#090030"/>
           </linearGradient>
           <linearGradient id="fAR" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" style="stop-color:#8800ee"/>
-            <stop offset="55%" style="stop-color:#cc00ff"/>
-            <stop offset="100%" style="stop-color:#ff0066"/>
+            <stop offset="0%" stop-color="#7700cc"/>
+            <stop offset="50%" stop-color="#cc00ff"/>
+            <stop offset="100%" stop-color="#ff0066"/>
           </linearGradient>
         </defs>
-        <polygon points="35,6 65,64 49,64 35,32" fill="#0e0038" opacity="0.6"/>
-        <polygon points="35,6 5,64 21,64 35,32" fill="url(#fLF)" opacity="0.7"/>
-        <polygon points="13,48 54,48 50,38 16,38" fill="url(#fIF)" opacity="0.55"/>
-        <line x1="24" y1="62" x2="56" y2="5" stroke="url(#fAR)" stroke-width="6" stroke-linecap="round" opacity="0.75"/>
-        <polygon points="56,5 40,13 49,28" fill="#ff0066" opacity="0.75"/>
+        <polygon points="35,30 20,65 50,65" fill="#0a4580" opacity="0.6"/>
+        <polygon points="35,6 65,65 50,65 35,30" fill="url(#fRF)" opacity="0.6"/>
+        <polygon points="35,6 5,65 20,65 35,30" fill="url(#fLF)" opacity="0.65"/>
+        <polygon points="15,47 55,47 57,38 13,38" fill="#0a4580" opacity="0.5"/>
+        <line x1="23" y1="64" x2="57" y2="5" stroke="url(#fAR)" stroke-width="6" stroke-linecap="round" opacity="0.72"/>
+        <polygon points="57,5 41,14 48,28" fill="#ff0066" opacity="0.72"/>
+        <polygon points="57,5 36,16 41,14" fill="#cc00ff" opacity="0.65"/>
       </svg>
       <span>APPINOX</span>
     </div>
@@ -429,8 +447,10 @@
   <div class="modal-container">
     <button class="modal-close" onclick="closeModal()">✕</button>
     <div class="modal-player">
-      <canvas id="player-canvas"></canvas>
-      <div class="player-overlay">
+      <!-- Real HTML5 video player (shown when video file is available) -->
+      <video id="player-video" preload="metadata" controlsList="nodownload" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1"></video>
+      <canvas id="player-canvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
+      <div class="player-overlay" id="player-overlay">
         <div class="player-controls">
           <div class="player-progress">
             <div class="progress-bar" onclick="seekTo(event,this)">

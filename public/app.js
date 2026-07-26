@@ -18,17 +18,21 @@ let isMuted = false;
 const RESUME_KEY = 'appinox_resume';
 
 function saveProgress() {
-  if (!currentModalId || progressPct <= 1) return;
+  if (!currentModalId) return;
   const item = CATALOG.find(c => c.id === currentModalId);
   if (!item) return;
-  try {
-    localStorage.setItem(RESUME_KEY, JSON.stringify({
-      id: currentModalId,
-      progressPct,
-      title: item.title,
-      savedAt: Date.now(),
-    }));
-  } catch {}
+  const videoEl = document.getElementById('player-video');
+  const state = { id: currentModalId, title: item.title, savedAt: Date.now() };
+
+  if (item.videoUrl && videoEl && videoEl.currentTime > 3 && isFinite(videoEl.duration)) {
+    state.currentTime = videoEl.currentTime;
+    state.duration    = videoEl.duration;
+  } else if (!item.videoUrl && progressPct > 1) {
+    state.progressPct = progressPct;
+  } else {
+    return; // nothing worth saving
+  }
+  try { localStorage.setItem(RESUME_KEY, JSON.stringify(state)); } catch {}
 }
 
 function loadResume() {
@@ -163,23 +167,34 @@ function renderResumeRow() {
   const item = CATALOG.find(c => c.id === resume.id);
   if (!item) { rowEl.style.display = 'none'; return; }
   rowEl.style.display = '';
-  const pct = Math.round(resume.progressPct);
+
+  // Calculate display percentage
+  let pct = 0;
+  let timeLabel = '';
+  if (resume.currentTime && resume.duration) {
+    pct = Math.round((resume.currentTime / resume.duration) * 100);
+    timeLabel = formatTime(Math.round(resume.currentTime)) + ' / ' + formatTime(Math.round(resume.duration));
+  } else if (resume.progressPct) {
+    pct = Math.round(resume.progressPct);
+    timeLabel = pct + '%';
+  }
+
   wrapEl.innerHTML = `
-    <div class="resume-card" onclick="openModal('${item.id}')" style="cursor:pointer;display:flex;align-items:center;gap:18px;
+    <div onclick="openModal('${item.id}')" style="cursor:pointer;display:flex;align-items:center;gap:18px;
       background:rgba(255,255,255,0.04);border:1px solid rgba(191,64,255,0.18);border-radius:14px;
-      padding:14px 18px;max-width:480px;transition:background 0.2s;" onmouseenter="this.style.background='rgba(255,255,255,0.07)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
+      padding:14px 18px;max-width:500px;transition:background 0.2s;" onmouseenter="this.style.background='rgba(255,255,255,0.07)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
       <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#0a0030,#1a0060);
         display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(0,212,255,0.2)">
         <svg viewBox="0 0 24 24" fill="currentColor" style="width:20px;color:#00d4ff"><polygon points="5,3 19,12 5,21"/></svg>
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:14px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title}</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-top:3px">${item.genre} · ${item.year} · <span style="color:var(--cyan)">${item.audio}</span></div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:3px">${item.genre} · ${item.year} · <span style="color:var(--cyan)">${item.audio}</span>${item.videoUrl ? ' · <span style="color:#00ff88">▶ Vidéo</span>' : ''}</div>
         <div style="height:3px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:8px;overflow:hidden">
           <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#00d4ff,#bf40ff);border-radius:3px"></div>
         </div>
       </div>
-      <div style="font-size:12px;color:var(--purple);font-weight:600;flex-shrink:0">${pct}%</div>
+      <div style="font-size:11px;color:var(--purple);font-weight:600;flex-shrink:0;text-align:right">${timeLabel}</div>
     </div>`;
 }
 
@@ -448,6 +463,19 @@ function renderAdminContentList() {
   </table>`;
 }
 
+function onVideoFileChosen(input) {
+  const label = document.getElementById('video-upload-label');
+  const labelText = document.getElementById('video-file-label-text');
+  if (input.files[0]) {
+    const mb = (input.files[0].size / 1024 / 1024).toFixed(1);
+    labelText.textContent = `${input.files[0].name} (${mb} Mo)`;
+    label.classList.add('has-file');
+  } else {
+    labelText.textContent = 'Choisir un fichier vidéo (mp4, mkv, avi…)';
+    label.classList.remove('has-file');
+  }
+}
+
 async function submitAddContent(e) {
   e.preventDefault();
   const errDiv = document.getElementById('form-error');
@@ -456,22 +484,12 @@ async function submitAddContent(e) {
   const spinner = document.getElementById('form-spinner');
   errDiv.classList.add('hidden');
 
-  const rows = [...document.querySelectorAll('input[name="rows"]:checked')].map(i => i.value);
+  const title = document.getElementById('f-title').value.trim();
+  const genre = document.getElementById('f-genre').value.trim();
+  const type  = document.getElementById('f-type').value;
+  const audio = document.getElementById('f-audio').value;
 
-  const payload = {
-    title:       document.getElementById('f-title').value.trim(),
-    genre:       document.getElementById('f-genre').value.trim(),
-    type:        document.getElementById('f-type').value,
-    duration:    document.getElementById('f-duration').value.trim(),
-    year:        parseInt(document.getElementById('f-year').value),
-    rating:      parseFloat(document.getElementById('f-rating').value) || null,
-    audio:       document.getElementById('f-audio').value,
-    quality:     document.getElementById('f-quality').value,
-    description: document.getElementById('f-desc').value.trim(),
-    rows,
-  };
-
-  if (!payload.title || !payload.genre || !payload.type || !payload.audio) {
+  if (!title || !genre || !type || !audio) {
     errDiv.textContent = 'Veuillez remplir tous les champs obligatoires.';
     errDiv.classList.remove('hidden');
     return;
@@ -479,21 +497,64 @@ async function submitAddContent(e) {
 
   btn.disabled = true; btnText.style.display = 'none'; spinner.style.display = 'block';
 
+  const rows = [...document.querySelectorAll('input[name="rows"]:checked')].map(i => i.value);
+  const videoFile = document.getElementById('f-video')?.files[0];
+
+  // Use FormData so we can include the video file
+  const fd = new FormData();
+  fd.append('title', title);
+  fd.append('genre', genre);
+  fd.append('type', type);
+  fd.append('audio', audio);
+  fd.append('duration', document.getElementById('f-duration').value.trim());
+  fd.append('year', document.getElementById('f-year').value || '');
+  fd.append('rating', document.getElementById('f-rating').value || '');
+  fd.append('quality', document.getElementById('f-quality').value);
+  fd.append('description', document.getElementById('f-desc').value.trim());
+  rows.forEach(r => fd.append('rows', r));
+  if (videoFile) fd.append('video', videoFile);
+
+  // Show upload progress if there's a video file
+  const progressWrap = document.getElementById('video-upload-progress');
+  const progressBar  = document.getElementById('video-progress-bar');
+  const progressText = document.getElementById('video-progress-text');
+
   try {
-    const res = await fetch('/api/admin/content', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Erreur');
-    CATALOG = data.catalog;
-    showToast(`"${payload.title}" ajouté ✓`);
+    if (videoFile) {
+      // Use XMLHttpRequest for progress tracking
+      const data = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/admin/content');
+        if (progressWrap) progressWrap.style.display = 'block';
+        xhr.upload.onprogress = ev => {
+          if (ev.lengthComputable && progressBar && progressText) {
+            const pct = Math.round((ev.loaded / ev.total) * 100);
+            progressBar.style.width = pct + '%';
+            progressText.textContent = `Upload : ${pct}% — ${(ev.loaded/1024/1024).toFixed(1)} / ${(ev.total/1024/1024).toFixed(1)} Mo`;
+          }
+        };
+        xhr.onload = () => {
+          try { resolve(JSON.parse(xhr.responseText)); }
+          catch { reject(new Error('Réponse invalide')); }
+        };
+        xhr.onerror = () => reject(new Error('Erreur réseau'));
+        xhr.send(fd);
+      });
+      if (!data.catalog) throw new Error(data.error || 'Erreur');
+      CATALOG = data.catalog;
+      showToast(`"${title}" ajouté ✓`);
+    } else {
+      const res = await fetch('/api/admin/content', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur');
+      CATALOG = data.catalog;
+      showToast(`"${title}" ajouté ✓`);
+    }
     resetForm();
     renderRows();
+    renderResumeRow();
     renderHero();
     renderAdminContentList();
-    // Update stats
     document.getElementById('stat-content').textContent = CATALOG.length;
     document.getElementById('stat-films').textContent = CATALOG.filter(c => c.type === 'film' || c.type === 'documentaire' || c.type === 'court-metrage').length;
     document.getElementById('stat-series').textContent = CATALOG.filter(c => c.type === 'serie').length;
@@ -502,6 +563,8 @@ async function submitAddContent(e) {
     errDiv.classList.remove('hidden');
   } finally {
     btn.disabled = false; btnText.style.display = 'block'; spinner.style.display = 'none';
+    if (progressWrap) progressWrap.style.display = 'none';
+    if (progressBar) progressBar.style.width = '0%';
   }
 }
 
@@ -525,6 +588,11 @@ async function deleteContent(id) {
 function resetForm() {
   document.getElementById('add-content-form').reset();
   document.getElementById('form-error').classList.add('hidden');
+  // Reset video file label
+  const labelText = document.getElementById('video-file-label-text');
+  const label = document.getElementById('video-upload-label');
+  if (labelText) labelText.textContent = 'Choisir un fichier vidéo (mp4, mkv, avi…)';
+  if (label) label.classList.remove('has-file');
 }
 
 function updateDurationPlaceholder() {
@@ -673,20 +741,61 @@ function openModal(id) {
   document.getElementById('video-modal').classList.remove('modal-hidden');
   document.body.style.overflow = 'hidden';
 
-  // Restore saved progress if any
-  const resume = loadResume();
-  if (resume && resume.id === id && resume.progressPct > 1 && resume.progressPct < 98) {
-    progressPct = resume.progressPct;
-    showToast(`▶ Reprise à ${Math.round(progressPct)}%`);
-  } else {
-    progressPct = 0;
-  }
+  const videoEl = document.getElementById('player-video');
+  const canvas  = document.getElementById('player-canvas');
+  const overlay = document.getElementById('player-overlay');
+  const resume  = loadResume();
 
-  setTimeout(() => { startPlayerCanvas(); startProgressTimer(item.duration); }, 100);
+  if (item.videoUrl) {
+    // ── Real video mode ──────────────────────────────────────────────
+    videoEl.style.display = 'block';
+    canvas.style.display  = 'none';
+    if (overlay) overlay.style.display = 'none';
+
+    videoEl.src = item.videoUrl;
+    videoEl.controls = true;
+    videoEl.load();
+
+    // Restore saved position
+    videoEl.addEventListener('loadedmetadata', function onMeta() {
+      videoEl.removeEventListener('loadedmetadata', onMeta);
+      if (resume && resume.id === id && resume.currentTime > 3) {
+        videoEl.currentTime = resume.currentTime;
+        showToast(`▶ Reprise à ${formatTime(Math.round(resume.currentTime))}`);
+      }
+      videoEl.play().catch(() => {});
+    });
+
+    // Save position every 5 s while playing
+    if (videoEl._saveInterval) clearInterval(videoEl._saveInterval);
+    videoEl._saveInterval = setInterval(() => {
+      if (!videoEl.paused && videoEl.currentTime > 3) saveProgress();
+    }, 5000);
+  } else {
+    // ── Canvas animation mode ────────────────────────────────────────
+    videoEl.style.display = 'none';
+    canvas.style.display  = '';
+    if (overlay) overlay.style.display = '';
+
+    if (resume && resume.id === id && resume.progressPct > 1 && resume.progressPct < 98) {
+      progressPct = resume.progressPct;
+      showToast(`▶ Reprise à ${Math.round(progressPct)}%`);
+    } else {
+      progressPct = 0;
+    }
+    setTimeout(() => { startPlayerCanvas(); startProgressTimer(item.duration); }, 100);
+  }
 }
 
 function closeModal() {
   saveProgress(); // persist before closing
+  const videoEl = document.getElementById('player-video');
+  if (videoEl) {
+    if (videoEl._saveInterval) { clearInterval(videoEl._saveInterval); videoEl._saveInterval = null; }
+    if (!videoEl.paused) videoEl.pause();
+    videoEl.src = '';
+    videoEl.controls = false;
+  }
   document.getElementById('video-modal').classList.add('modal-hidden');
   document.body.style.overflow = '';
   isPlaying = false;
