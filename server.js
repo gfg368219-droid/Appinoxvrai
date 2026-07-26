@@ -8,16 +8,21 @@ const multer = require('multer');
 
 const app = express();
 const PORT = 5000;
-const DATA_DIR = path.join(__dirname, 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const DATA_DIR   = path.join(__dirname, 'data');
+const USERS_FILE   = path.join(DATA_DIR, 'users.json');
 const CATALOG_FILE = path.join(DATA_DIR, 'catalog.json');
+const RATINGS_FILE = path.join(DATA_DIR, 'ratings.json');
 const PUBLIC_CATALOG = path.join(__dirname, 'public', 'data', 'catalog.json');
 const VIDEOS_DIR = path.join(__dirname, 'public', 'videos');
+const IMAGES_DIR = path.join(__dirname, 'public', 'images');
 fs.mkdirSync(VIDEOS_DIR, { recursive: true });
+fs.mkdirSync(IMAGES_DIR, { recursive: true });
+fs.mkdirSync(path.join(__dirname, 'public', 'data'), { recursive: true });
 
+// ── Multer: video ─────────────────────────────────────────────────────────────
 const videoStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, VIDEOS_DIR),
-  filename: (req, file, cb) => {
+  filename:    (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase() || '.mp4';
     cb(null, 'v-' + uuidv4().slice(0, 8) + ext);
   },
@@ -30,6 +35,23 @@ const uploadVideo = multer({
   },
 });
 
+// ── Multer: image ─────────────────────────────────────────────────────────────
+const imageStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, IMAGES_DIR),
+  filename:    (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, 'img-' + uuidv4().slice(0, 8) + ext);
+  },
+});
+const uploadImage = multer({
+  storage: imageStorage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) return cb(null, true);
+    cb(new Error('Format image non supporté'));
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function loadJSON(file, fallback = []) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
@@ -38,12 +60,29 @@ function saveJSON(file, data) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(data, null, 2));
 }
-function loadUsers() { return loadJSON(USERS_FILE, []); }
-function saveUsers(u) { saveJSON(USERS_FILE, u); }
+function loadUsers()   { return loadJSON(USERS_FILE, []); }
+function saveUsers(u)  { saveJSON(USERS_FILE, u); }
 function loadCatalog() { return loadJSON(CATALOG_FILE, []); }
 function saveCatalog(c) {
   saveJSON(CATALOG_FILE, c);
-  saveJSON(PUBLIC_CATALOG, c); // keep public copy in sync
+  saveJSON(PUBLIC_CATALOG, c);
+}
+function loadRatings() { return loadJSON(RATINGS_FILE, {}); }
+function saveRatings(r) { saveJSON(RATINGS_FILE, r); }
+
+// Compute average ratings map { itemId -> { avg, count } }
+function computeAvgRatings() {
+  const raw = loadRatings();
+  const result = {};
+  for (const [itemId, votes] of Object.entries(raw)) {
+    const vals = Object.values(votes);
+    if (!vals.length) continue;
+    result[itemId] = {
+      avg: Math.round((vals.reduce((a,b) => a+b, 0) / vals.length) * 10) / 10,
+      count: vals.length,
+    };
+  }
+  return result;
 }
 
 // ── Admin account ─────────────────────────────────────────────────────────────
@@ -78,9 +117,10 @@ function requireAdmin(req, res, next) {
 }
 
 // ── Static (public, no auth) ──────────────────────────────────────────────────
-app.use('/auth.css', express.static(path.join(__dirname, 'public', 'auth.css')));
-app.use('/auth.js',  express.static(path.join(__dirname, 'public', 'auth.js')));
-app.use('/style.css',express.static(path.join(__dirname, 'public', 'style.css')));
+app.use('/auth.css',  express.static(path.join(__dirname, 'public', 'auth.css')));
+app.use('/auth.js',   express.static(path.join(__dirname, 'public', 'auth.js')));
+app.use('/style.css', express.static(path.join(__dirname, 'public', 'style.css')));
+app.use('/logo.png',  express.static(path.join(__dirname, 'public', 'logo.png')));
 
 // ── Auth pages ────────────────────────────────────────────────────────────────
 app.get('/login',    (req, res) => {
@@ -165,7 +205,42 @@ app.get('/api/me', requireAuth, (req, res) => {
 
 // ── API: Catalog ──────────────────────────────────────────────────────────────
 app.get('/api/catalog', requireAuth, (req, res) => {
-  res.json(loadCatalog());
+  const catalog = loadCatalog();
+  const avgRatings = computeAvgRatings();
+  const result = catalog.map(item => ({
+    ...item,
+    communityRating: avgRatings[item.id] || null,
+  }));
+  res.json(result);
+});
+
+// ── API: Ratings ──────────────────────────────────────────────────────────────
+app.get('/api/ratings', requireAuth, (req, res) => {
+  res.json(computeAvgRatings());
+});
+
+app.get('/api/rating/:id', requireAuth, (req, res) => {
+  const ratings = loadRatings();
+  const itemRatings = ratings[req.params.id] || {};
+  const myRating = itemRatings[req.session.userId] || 0;
+  const vals = Object.values(itemRatings);
+  const avg  = vals.length ? Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*10)/10 : 0;
+  res.json({ myRating, avg, count: vals.length });
+});
+
+app.post('/api/rating/:id', requireAuth, (req, res) => {
+  const { rating } = req.body;
+  const r = parseFloat(rating);
+  if (isNaN(r) || r < 1 || r > 5) return res.status(400).json({ error: 'Note invalide (1-5)' });
+
+  const ratings = loadRatings();
+  if (!ratings[req.params.id]) ratings[req.params.id] = {};
+  ratings[req.params.id][req.session.userId] = r;
+  saveRatings(ratings);
+
+  const vals = Object.values(ratings[req.params.id]);
+  const avg  = Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*10)/10;
+  res.json({ success: true, avg, count: vals.length, myRating: r });
 });
 
 // ── API: Search ───────────────────────────────────────────────────────────────
@@ -206,36 +281,132 @@ app.post('/api/watchlist/:id', requireAuth, (req, res) => {
 // ── API: Admin — Users ────────────────────────────────────────────────────────
 app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
   const users = loadUsers().map(({ passwordHash, ...u }) => u);
-  res.json({ users, total: users.length + 1 }); // +1 for hardcoded admin
+  res.json({ users, total: users.length + 1 });
+});
+
+// ── API: Admin — Standalone video upload (background) ────────────────────────
+app.post('/api/admin/upload-video', requireAuth, requireAdmin, uploadVideo.single('video'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Aucun fichier vidéo reçu' });
+  res.json({ success: true, filename: req.file.filename, videoUrl: '/videos/' + req.file.filename });
+});
+
+// ── API: Admin — Standalone image upload ─────────────────────────────────────
+app.post('/api/admin/upload-image', requireAuth, requireAdmin, uploadImage.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Aucune image reçue' });
+  res.json({ success: true, filename: req.file.filename, imageUrl: '/images/' + req.file.filename });
+});
+
+// ── API: Admin — TMDB Search ──────────────────────────────────────────────────
+app.get('/api/admin/tmdb-search', requireAuth, requireAdmin, async (req, res) => {
+  const q = (req.query.q || '').trim();
+  if (!q) return res.json({ results: [] });
+
+  const apiKey = process.env.TMDB_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'Clé TMDB non configurée (TMDB_KEY)' });
+
+  try {
+    const url = `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(q)}&language=fr-FR&include_adult=false`;
+    const r = await fetch(url, {
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+    });
+    const data = await r.json();
+    const results = (data.results || []).filter(x => x.media_type === 'movie' || x.media_type === 'tv').slice(0, 8).map(x => ({
+      tmdbId:    x.id,
+      title:     x.title || x.name,
+      type:      x.media_type === 'tv' ? 'serie' : 'film',
+      year:      (x.release_date || x.first_air_date || '').slice(0, 4),
+      overview:  x.overview,
+      poster:    x.poster_path ? `https://image.tmdb.org/t/p/w500${x.poster_path}` : null,
+      backdrop:  x.backdrop_path ? `https://image.tmdb.org/t/p/w780${x.backdrop_path}` : null,
+      voteAvg:   x.vote_average ? Math.round(x.vote_average / 2 * 10) / 10 : null,
+    }));
+    res.json({ results });
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur TMDB: ' + err.message });
+  }
+});
+
+// ── API: Admin — TMDB Detail (cast, genres, trailer) ─────────────────────────
+app.get('/api/admin/tmdb-detail/:type/:id', requireAuth, requireAdmin, async (req, res) => {
+  const apiKey = process.env.TMDB_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'Clé TMDB non configurée' });
+
+  const { type, id } = req.params;
+  const endpoint = type === 'tv' ? 'tv' : 'movie';
+
+  try {
+    const [detailRes, creditsRes, videosRes] = await Promise.all([
+      fetch(`https://api.themoviedb.org/3/${endpoint}/${id}?language=fr-FR`, { headers: { Authorization: `Bearer ${apiKey}` } }),
+      fetch(`https://api.themoviedb.org/3/${endpoint}/${id}/credits?language=fr-FR`, { headers: { Authorization: `Bearer ${apiKey}` } }),
+      fetch(`https://api.themoviedb.org/3/${endpoint}/${id}/videos?language=fr-FR`, { headers: { Authorization: `Bearer ${apiKey}` } }),
+    ]);
+    const detail  = await detailRes.json();
+    const credits = await creditsRes.json();
+    const videos  = await videosRes.json();
+
+    const genres  = (detail.genres || []).map(g => g.name).join(', ');
+    const runtime = detail.runtime ? `${Math.floor(detail.runtime/60)}h ${detail.runtime%60}m` : (detail.episode_run_time?.[0] ? `${detail.episode_run_time[0]}m` : null);
+    const actors  = (credits.cast || []).slice(0, 8).map(a => ({
+      name:  a.name,
+      photo: a.profile_path ? `https://image.tmdb.org/t/p/w185${a.profile_path}` : null,
+    }));
+    const trailer = (videos.results || []).find(v => v.type === 'Trailer' && v.site === 'YouTube')
+                 || (videos.results || []).find(v => v.site === 'YouTube');
+    const trailerUrl = trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : null;
+
+    res.json({ genres, runtime, actors, trailerUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── API: Admin — Add content ──────────────────────────────────────────────────
-app.post('/api/admin/content', requireAuth, requireAdmin, uploadVideo.single('video'), (req, res) => {
-  const { title, genre, type, duration, year, rating, audio, quality, description } = req.body;
-  let { rows } = req.body;
+app.post('/api/admin/content', requireAuth, requireAdmin, (req, res) => {
+  const { title, genre, type, duration, year, audio, quality, description, trailerUrl, posterUrl, videoUrl } = req.body;
+  let { rows, actors } = req.body;
+
   if (!title || !genre || !type || !audio)
     return res.status(400).json({ error: 'Titre, genre, type et audio sont obligatoires' });
 
+  let parsedActors = [];
+  if (actors) {
+    try { parsedActors = typeof actors === 'string' ? JSON.parse(actors) : actors; } catch {}
+  }
+
   const catalog = loadCatalog();
   const newItem = {
-    id: 'c-' + uuidv4().slice(0, 8),
-    title: title.trim(),
-    genre: genre.trim(),
+    id:          'c-' + uuidv4().slice(0, 8),
+    title:       title.trim(),
+    genre:       genre.trim(),
     type,
-    duration: duration?.trim() || null,
-    year: parseInt(year) || new Date().getFullYear(),
-    rating: rating ? parseFloat(rating) : null,
+    duration:    duration?.trim() || null,
+    year:        parseInt(year) || new Date().getFullYear(),
     audio,
-    quality: quality || null,
+    quality:     quality || null,
     description: (description || '').trim(),
-    rows: Array.isArray(rows) ? rows : (rows ? [rows] : []),
-    addedAt: new Date().toISOString(),
-    videoUrl: req.file ? '/videos/' + req.file.filename : null,
+    trailerUrl:  trailerUrl?.trim() || null,
+    posterUrl:   posterUrl?.trim() || null,
+    videoUrl:    videoUrl?.trim() || null,
+    actors:      parsedActors,
+    rows:        Array.isArray(rows) ? rows : (rows ? [rows] : []),
+    addedAt:     new Date().toISOString(),
   };
 
-  catalog.unshift(newItem); // newest first
+  catalog.unshift(newItem);
   saveCatalog(catalog);
   res.json({ success: true, item: newItem, catalog });
+});
+
+// ── API: Admin — Edit content ─────────────────────────────────────────────────
+app.patch('/api/admin/content/:id', requireAuth, requireAdmin, (req, res) => {
+  const catalog = loadCatalog();
+  const idx = catalog.findIndex(c => c.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Contenu non trouvé' });
+  const { rows, ...rest } = req.body;
+  catalog[idx] = { ...catalog[idx], ...rest };
+  if (rows !== undefined) catalog[idx].rows = Array.isArray(rows) ? rows : (rows ? [rows] : []);
+  saveCatalog(catalog);
+  res.json({ success: true, item: catalog[idx], catalog });
 });
 
 // ── API: Admin — Delete content ───────────────────────────────────────────────
@@ -243,13 +414,18 @@ app.delete('/api/admin/content/:id', requireAuth, requireAdmin, (req, res) => {
   let catalog = loadCatalog();
   const item = catalog.find(c => c.id === req.params.id);
   if (!item) return res.status(404).json({ error: 'Contenu non trouvé' });
-  // Remove video file from disk if it exists
-  if (item.videoUrl) {
-    const filePath = path.join(__dirname, 'public', item.videoUrl);
-    try { fs.unlinkSync(filePath); } catch {}
+  if (item.videoUrl && item.videoUrl.startsWith('/videos/')) {
+    try { fs.unlinkSync(path.join(__dirname, 'public', item.videoUrl)); } catch {}
+  }
+  if (item.posterUrl && item.posterUrl.startsWith('/images/')) {
+    try { fs.unlinkSync(path.join(__dirname, 'public', item.posterUrl)); } catch {}
   }
   catalog = catalog.filter(c => c.id !== req.params.id);
   saveCatalog(catalog);
+  // Also remove ratings for this item
+  const ratings = loadRatings();
+  delete ratings[req.params.id];
+  saveRatings(ratings);
   res.json({ success: true, catalog });
 });
 
@@ -257,14 +433,10 @@ app.delete('/api/admin/content/:id', requireAuth, requireAdmin, (req, res) => {
 app.use(requireAuth, express.static(path.join(__dirname, 'public')));
 
 // ── Protected pages ───────────────────────────────────────────────────────────
-app.get('/', requireAuth, (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+app.get('/', requireAuth, (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('*', (req, res) => {
   if (req.session?.userId) res.sendFile(path.join(__dirname, 'public', 'index.html'));
   else res.redirect('/login');
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✦ APPINOX → port ${PORT}`);
-});
+app.listen(PORT, '0.0.0.0', () => console.log(`✦ APPINOX → port ${PORT}`));

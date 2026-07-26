@@ -8,43 +8,41 @@ let CATALOG = [];
 let currentUser = null;
 let watchlist = new Set();
 let currentModalId = null;
+let currentModalTab = 'trailer';
 let isPlaying = false;
 let playerRaf = null;
 let progressInterval = null;
 let progressPct = 0;
 let isMuted = false;
 
+// TMDB selected result
+let tmdbSelected = null;
+let tmdbDetail   = null;
+
+// Background upload state (persists across section navigation)
+const bgUpload = { active: false, pct: 0, filename: null, videoUrl: null, xhr: null };
+// Poster upload state
+const bgPoster = { active: false, url: null };
+
 // ── Persistent Playback ───────────────────────────────────────────────────────
 const RESUME_KEY = 'appinox_resume';
-
 function saveProgress() {
   if (!currentModalId) return;
   const item = CATALOG.find(c => c.id === currentModalId);
   if (!item) return;
   const videoEl = document.getElementById('player-video');
   const state = { id: currentModalId, title: item.title, savedAt: Date.now() };
-
   if (item.videoUrl && videoEl && videoEl.currentTime > 3 && isFinite(videoEl.duration)) {
     state.currentTime = videoEl.currentTime;
     state.duration    = videoEl.duration;
   } else if (!item.videoUrl && progressPct > 1) {
     state.progressPct = progressPct;
-  } else {
-    return; // nothing worth saving
-  }
+  } else { return; }
   try { localStorage.setItem(RESUME_KEY, JSON.stringify(state)); } catch {}
 }
+function loadResume()     { try { return JSON.parse(localStorage.getItem(RESUME_KEY)); } catch { return null; } }
+function clearResume(id)  { const s = loadResume(); if (!id || s?.id === id) localStorage.removeItem(RESUME_KEY); }
 
-function loadResume() {
-  try { return JSON.parse(localStorage.getItem(RESUME_KEY)); } catch { return null; }
-}
-
-function clearResume(id) {
-  const saved = loadResume();
-  if (!id || saved?.id === id) localStorage.removeItem(RESUME_KEY);
-}
-
-// Save when leaving the page
 document.addEventListener('visibilitychange', () => { if (document.hidden) saveProgress(); });
 window.addEventListener('beforeunload', saveProgress);
 
@@ -67,14 +65,11 @@ function runIntro() {
     length: 40 + Math.random() * 220,
     opacity: 0.25 + Math.random() * 0.75,
     color: ['#00d4ff','#bf40ff','#ff2d78'][Math.floor(Math.random() * 3)],
-    delay: Math.random() * 60,
-    born: false,
+    delay: Math.random() * 60, born: false,
   }));
 
-  // Stagger letters
   document.querySelectorAll('#intro-wordmark span').forEach((el, i) => {
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(30px)';
+    el.style.opacity = '0'; el.style.transform = 'translateY(30px)';
     el.style.display = 'inline-block';
     el.style.transition = `opacity 0.45s ease ${1.2 + i * 0.07}s, transform 0.45s ease ${1.2 + i * 0.07}s`;
     setTimeout(() => { el.style.opacity = '1'; el.style.transform = 'translateY(0)'; }, 1200 + i * 70);
@@ -95,10 +90,8 @@ function runIntro() {
       grd.addColorStop(0, 'transparent');
       grd.addColorStop(0.5, s.color + Math.floor(s.opacity * 255).toString(16).padStart(2, '0'));
       grd.addColorStop(1, 'transparent');
-      ctx.strokeStyle = grd;
-      ctx.lineWidth = burstAt ? s.width * 2.5 : s.width;
-      ctx.shadowBlur = burstAt ? 25 : 8;
-      ctx.shadowColor = s.color;
+      ctx.strokeStyle = grd; ctx.lineWidth = burstAt ? s.width * 2.5 : s.width;
+      ctx.shadowBlur = burstAt ? 25 : 8; ctx.shadowColor = s.color;
       ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x, s.y + s.length); ctx.stroke();
     });
     ctx.shadowBlur = 0;
@@ -108,15 +101,14 @@ function runIntro() {
 
   setTimeout(() => {
     const intro = document.getElementById('intro-screen');
-    const app = document.getElementById('main-app');
+    const app   = document.getElementById('main-app');
     intro.style.transition = 'opacity 0.9s ease';
     intro.style.opacity = '0';
     setTimeout(() => {
       cancelAnimationFrame(rafId);
       intro.style.display = 'none';
       app.classList.remove('hidden');
-      app.style.opacity = '0';
-      app.style.transition = 'opacity 0.6s ease';
+      app.style.opacity = '0'; app.style.transition = 'opacity 0.6s ease';
       requestAnimationFrame(() => { app.style.opacity = '1'; });
       initApp();
     }, 900);
@@ -127,24 +119,21 @@ function runIntro() {
 async function initApp() {
   try {
     const [meRes, catRes, wlRes] = await Promise.all([
-      fetch('/api/me'),
-      fetch('/api/catalog'),
-      fetch('/api/watchlist'),
+      fetch('/api/me'), fetch('/api/catalog'), fetch('/api/watchlist'),
     ]);
     currentUser = await meRes.json();
     CATALOG = await catRes.json();
     const wlData = await wlRes.json();
     watchlist = new Set(wlData.watchlist || []);
 
-    // Update user UI
     const letter = currentUser.avatar || currentUser.name?.[0]?.toUpperCase() || 'U';
-    document.getElementById('avatar-letter').textContent = letter;
-    document.getElementById('menu-avatar-big').textContent = letter;
-    document.getElementById('menu-name').textContent = currentUser.name;
-    document.getElementById('menu-email').textContent = currentUser.email;
+    document.getElementById('avatar-letter').textContent    = letter;
+    document.getElementById('menu-avatar-big').textContent  = letter;
+    document.getElementById('menu-name').textContent        = currentUser.name;
+    document.getElementById('menu-email').textContent       = currentUser.email;
     if (currentUser.role === 'admin') {
-      document.getElementById('menu-role').textContent = '🛡 Administrateur';
-      document.getElementById('menu-role').style.color = '#bf40ff';
+      document.getElementById('menu-role').textContent    = 'Administrateur';
+      document.getElementById('menu-role').style.color   = '#bf40ff';
       document.getElementById('admin-btn').style.display = 'flex';
     }
 
@@ -153,14 +142,13 @@ async function initApp() {
     renderResumeRow();
     initHeroCanvas();
     initNavbarScroll();
-  } catch (e) {
-    console.error('initApp error:', e);
-  }
+  } catch (e) { console.error('initApp error:', e); }
 }
 
+// ── RESUME ROW ────────────────────────────────────────────────────────────────
 function renderResumeRow() {
   const resume = loadResume();
-  const rowEl = document.getElementById('row-resume');
+  const rowEl  = document.getElementById('row-resume');
   const wrapEl = document.getElementById('resume-card-wrap');
   if (!rowEl || !wrapEl) return;
   if (!resume) { rowEl.style.display = 'none'; return; }
@@ -168,28 +156,31 @@ function renderResumeRow() {
   if (!item) { rowEl.style.display = 'none'; return; }
   rowEl.style.display = '';
 
-  // Calculate display percentage
-  let pct = 0;
-  let timeLabel = '';
+  let pct = 0, timeLabel = '';
   if (resume.currentTime && resume.duration) {
     pct = Math.round((resume.currentTime / resume.duration) * 100);
     timeLabel = formatTime(Math.round(resume.currentTime)) + ' / ' + formatTime(Math.round(resume.duration));
   } else if (resume.progressPct) {
-    pct = Math.round(resume.progressPct);
-    timeLabel = pct + '%';
+    pct = Math.round(resume.progressPct); timeLabel = pct + '%';
   }
+
+  const posterStyle = item.posterUrl
+    ? `background:url('${item.posterUrl}') center/cover no-repeat;`
+    : 'background:linear-gradient(135deg,#0a0030,#1a0060);';
 
   wrapEl.innerHTML = `
     <div onclick="openModal('${item.id}')" style="cursor:pointer;display:flex;align-items:center;gap:18px;
       background:rgba(255,255,255,0.04);border:1px solid rgba(191,64,255,0.18);border-radius:14px;
-      padding:14px 18px;max-width:500px;transition:background 0.2s;" onmouseenter="this.style.background='rgba(255,255,255,0.07)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
-      <div style="width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,#0a0030,#1a0060);
-        display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(0,212,255,0.2)">
-        <svg viewBox="0 0 24 24" fill="currentColor" style="width:20px;color:#00d4ff"><polygon points="5,3 19,12 5,21"/></svg>
+      padding:14px 18px;max-width:500px;transition:background 0.2s"
+      onmouseenter="this.style.background='rgba(255,255,255,0.07)'"
+      onmouseleave="this.style.background='rgba(255,255,255,0.04)'">
+      <div style="width:54px;height:54px;border-radius:10px;${posterStyle}
+        display:flex;align-items:center;justify-content:center;flex-shrink:0;border:1px solid rgba(0,212,255,0.2);overflow:hidden">
+        ${!item.posterUrl ? '<svg viewBox="0 0 24 24" fill="currentColor" style="width:20px;color:#00d4ff"><polygon points="5,3 19,12 5,21"/></svg>' : ''}
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:14px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.title}</div>
-        <div style="font-size:12px;color:var(--text-dim);margin-top:3px">${item.genre} · ${item.year} · <span style="color:var(--cyan)">${item.audio}</span>${item.videoUrl ? ' · <span style="color:#00ff88">▶ Vidéo</span>' : ''}</div>
+        <div style="font-size:12px;color:var(--text-dim);margin-top:3px">${item.genre} · ${item.year} · <span style="color:var(--cyan)">${item.audio}</span></div>
         <div style="height:3px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:8px;overflow:hidden">
           <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#00d4ff,#bf40ff);border-radius:3px"></div>
         </div>
@@ -201,7 +192,9 @@ function renderResumeRow() {
 // ── HERO ──────────────────────────────────────────────────────────────────────
 function renderHero() {
   const area = document.getElementById('hero-content-area');
+  const posterBg = document.getElementById('hero-poster-bg');
   if (!CATALOG.length) {
+    if (posterBg) posterBg.style.backgroundImage = '';
     area.innerHTML = `
       <div class="hero-welcome">
         <div class="hero-badge"><span class="badge-icon">◆</span> BIENVENUE</div>
@@ -210,13 +203,21 @@ function renderHero() {
       </div>`;
     return;
   }
-  // Show first item as featured
   const featured = CATALOG[0];
+  if (posterBg && featured.posterUrl) {
+    posterBg.style.backgroundImage = `url('${featured.posterUrl}')`;
+    posterBg.style.opacity = '0.35';
+  } else if (posterBg) {
+    posterBg.style.backgroundImage = '';
+    posterBg.style.opacity = '0';
+  }
+
+  const communityRating = featured.communityRating;
   area.innerHTML = `
     <div class="hero-badge"><span class="badge-icon">◆</span> ${featured.type === 'serie' ? 'SÉRIE' : 'FILM'} · ${featured.audio}</div>
     <h1 class="hero-title">${featured.title}</h1>
     <div class="hero-meta">
-      ${featured.rating ? `<span class="rating">⭐ ${featured.rating}</span>` : ''}
+      ${communityRating ? `<span class="rating">${renderStarsSmall(communityRating.avg)} ${communityRating.avg}/5 <span style="color:var(--text-dim);font-size:11px">(${communityRating.count})</span></span>` : ''}
       <span class="year">${featured.year}</span>
       ${featured.quality ? `<span class="tag">${featured.quality}</span>` : ''}
       ${featured.duration ? `<span class="duration">${featured.duration}</span>` : ''}
@@ -224,32 +225,42 @@ function renderHero() {
     <p class="hero-desc">${featured.description}</p>
     <div class="hero-actions">
       <button class="btn-play" onclick="openModal('${featured.id}')">
-        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-        Regarder
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width:17px;height:17px"><polygon points="5,3 19,12 5,21"/></svg>
+        ${featured.trailerUrl ? 'Bande-annonce' : 'Regarder'}
       </button>
       <button class="btn-add" onclick="toggleWatchlist('${featured.id}',this)" id="hero-wl-btn" title="Ma liste">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          ${watchlist.has(featured.id)
-            ? '<polyline points="20 6 9 17 4 12"/>'
-            : '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'}
+          ${watchlist.has(featured.id) ? '<polyline points="20 6 9 17 4 12"/>' : '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'}
         </svg>
       </button>
     </div>`;
 }
 
+function renderStarsSmall(avg) {
+  let s = '';
+  for (let i = 1; i <= 5; i++) {
+    s += `<span style="color:${i <= Math.round(avg) ? '#ffd700' : 'rgba(255,215,0,0.25)'}">★</span>`;
+  }
+  return s;
+}
+
 // ── ROWS ──────────────────────────────────────────────────────────────────────
 function renderRows() {
-  const trending = CATALOG.filter(c => c.rows?.includes('trending'));
+  // Trending = manual checkbox OR top community-rated (avg >= 3.5, at least 1 vote)
+  const manualTrending = CATALOG.filter(c => c.rows?.includes('trending'));
+  const ratedTrending  = CATALOG.filter(c =>
+    c.communityRating && c.communityRating.avg >= 3.5 && !manualTrending.find(m => m.id === c.id)
+  ).sort((a, b) => (b.communityRating.avg - a.communityRating.avg));
+  const trending = [...manualTrending, ...ratedTrending].slice(0, 20);
+
   const recent = [...CATALOG].reverse().slice(0, 12);
 
   renderRow('trending-track', trending);
   renderRow('recent-track', recent);
 
-  // Hide empty rows
   document.getElementById('row-trending').style.display = trending.length ? '' : 'none';
-  document.getElementById('row-recent').style.display = recent.length ? '' : 'none';
+  document.getElementById('row-recent').style.display   = recent.length  ? '' : 'none';
 
-  // Grids
   renderGrid('movies-grid', CATALOG.filter(c => c.type === 'film' || c.type === 'court-metrage' || c.type === 'documentaire'));
   renderGrid('series-grid', CATALOG.filter(c => c.type === 'serie'));
 }
@@ -266,30 +277,47 @@ function renderGrid(gridId, items) {
   if (!grid) return;
   grid.innerHTML = '';
   if (!items.length) {
-    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🎬</div><p>Aucun contenu disponible</p></div>`;
+    grid.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-svg"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg><p>Aucun contenu disponible</p></div>`;
     return;
   }
   items.forEach((item, i) => grid.appendChild(makeCard(item, i)));
 }
 
 // ── CARD ──────────────────────────────────────────────────────────────────────
+const PALETTE = [
+  ['#0a0020','#1a0040'],['#200005','#400010'],['#000a20','#001540'],
+  ['#050015','#0a0030'],['#001a10','#003020'],['#200000','#3a0808'],
+  ['#000520','#00093a'],['#1a0005','#300010'],['#0a1000','#152000'],
+  ['#050020','#0a003a'],['#200a00','#3a1500'],['#00101a','#001a2d'],
+];
+
 function makeCard(item, idx) {
   const card = document.createElement('div');
   card.className = 'media-card';
   card.dataset.id = item.id;
   const inList = watchlist.has(item.id);
   const colors = PALETTE[idx % PALETTE.length];
+  const cr = item.communityRating;
+
+  const thumbContent = item.posterUrl
+    ? `<img src="${item.posterUrl}" class="card-poster-img" alt="${item.title}" loading="lazy"/>`
+    : `<div class="card-art">${posterArt(idx)}</div>`;
+
+  const thumbStyle = item.posterUrl
+    ? ''
+    : `style="background:linear-gradient(160deg,${colors[0]} 0%,${colors[1]} 55%,#000 100%)"`;
 
   card.innerHTML = `
-    <div class="card-thumb" style="background:linear-gradient(160deg,${colors[0]} 0%,${colors[1]} 55%,#000 100%)">
-      <div class="card-art">${posterArt(idx)}</div>
+    <div class="card-thumb" ${thumbStyle}>
+      ${thumbContent}
       <div class="card-gradient-overlay"></div>
     </div>
     <div class="card-badge-top">
       <span class="audio-badge">${item.audio || 'VO'}</span>
       ${item.quality ? `<span class="quality-badge">${item.quality}</span>` : ''}
+      ${item.trailerUrl ? `<span class="trailer-badge"><svg viewBox="0 0 24 24" fill="currentColor" style="width:8px;height:8px"><polygon points="5,3 19,12 5,21"/></svg></span>` : ''}
     </div>
-    ${item.rating ? `<div class="card-rating">⭐ ${item.rating}</div>` : ''}
+    ${cr ? `<div class="card-rating">${'★'.repeat(Math.round(cr.avg))}${'☆'.repeat(5-Math.round(cr.avg))} <span style="font-size:10px;opacity:0.7">${cr.avg}</span></div>` : ''}
     <div class="card-info">
       <div class="card-title">${item.title}</div>
       <div class="card-genre">${item.genre} · ${item.year}</div>
@@ -308,7 +336,7 @@ function makeCard(item, idx) {
       <div class="card-hover-info">
         <div class="card-hover-title">${item.title}</div>
         <div class="card-hover-meta">
-          ${item.rating ? `<span>⭐ ${item.rating}</span>` : ''}
+          ${cr ? `<span style="color:#ffd700">★ ${cr.avg}/5</span>` : ''}
           ${item.duration ? `<span>${item.duration}</span>` : ''}
         </div>
         <div class="card-hover-genre">${item.genre} · <span style="color:var(--cyan)">${item.audio}</span></div>
@@ -318,27 +346,16 @@ function makeCard(item, idx) {
   return card;
 }
 
-const PALETTE = [
-  ['#0a0020','#1a0040'],['#200005','#400010'],['#000a20','#001540'],
-  ['#050015','#0a0030'],['#001a10','#003020'],['#200000','#3a0808'],
-  ['#000520','#00093a'],['#1a0005','#300010'],['#0a1000','#152000'],
-  ['#050020','#0a003a'],['#200a00','#3a1500'],['#00101a','#001a2d'],
-];
-
 function posterArt(idx) {
   const h = [220,280,340,160,200,260,30,180,310,120,240,300][idx % 12];
   const arts = [
     `<circle cx="60" cy="60" r="38" fill="none" stroke="hsla(${h},100%,70%,0.3)" stroke-width="1.5"/>
-     <circle cx="60" cy="60" r="20" fill="hsla(${h},100%,60%,0.12)"/>
-     <line x1="22" y1="60" x2="98" y2="60" stroke="hsla(${h},100%,70%,0.2)" stroke-width="1"/>
-     <line x1="60" y1="22" x2="60" y2="98" stroke="hsla(${h},100%,70%,0.2)" stroke-width="1"/>`,
+     <circle cx="60" cy="60" r="20" fill="hsla(${h},100%,60%,0.12)"/>`,
     `<polygon points="60,18 98,85 22,85" fill="none" stroke="hsla(${h},100%,70%,0.35)" stroke-width="1.5"/>
      <polygon points="60,36 82,78 38,78" fill="hsla(${h},100%,60%,0.1)"/>`,
     `<rect x="22" y="22" width="76" height="76" fill="none" stroke="hsla(${h},100%,70%,0.28)" stroke-width="1.5" rx="4" transform="rotate(45 60 60)"/>`,
-    `<path d="M20,60 Q40,20 60,60 Q80,100 100,60" fill="none" stroke="hsla(${h},100%,70%,0.45)" stroke-width="2"/>
-     <path d="M20,60 Q40,100 60,60 Q80,20 100,60" fill="none" stroke="hsla(${h+60},100%,70%,0.25)" stroke-width="1.5"/>`,
+    `<path d="M20,60 Q40,20 60,60 Q80,100 100,60" fill="none" stroke="hsla(${h},100%,70%,0.45)" stroke-width="2"/>`,
     `<circle cx="60" cy="60" r="34" fill="none" stroke="hsla(${h},100%,70%,0.18)" stroke-dasharray="6 4" stroke-width="1"/>
-     <circle cx="60" cy="60" r="18" fill="hsla(${h},100%,60%,0.18)"/>
      <circle cx="60" cy="60" r="6" fill="hsla(${h},100%,80%,0.4)"/>`,
   ];
   return `<svg viewBox="0 0 120 120" fill="none">${arts[idx % arts.length]}</svg>`;
@@ -347,23 +364,20 @@ function posterArt(idx) {
 // ── WATCHLIST ─────────────────────────────────────────────────────────────────
 async function toggleWatchlist(id, btn) {
   try {
-    const res = await fetch(`/api/watchlist/${id}`, { method: 'POST' });
+    const res  = await fetch(`/api/watchlist/${id}`, { method: 'POST' });
     const data = await res.json();
-    if (data.inList) { watchlist.add(id); showToast('Ajouté à ma liste ✓'); }
+    if (data.inList) { watchlist.add(id); showToast('Ajouté à ma liste'); }
     else { watchlist.delete(id); showToast('Retiré de ma liste'); }
-    // Update all add buttons for this id
     document.querySelectorAll('.media-card').forEach(card => {
-      if (card.dataset.id === id) {
-        const b = card.querySelector('.add-circle');
-        if (b) {
-          b.classList.toggle('in-list', data.inList);
-          b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            ${data.inList ? '<polyline points="20 6 9 17 4 12"/>' : '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'}
-          </svg>`;
-        }
+      if (card.dataset.id !== id) return;
+      const b = card.querySelector('.add-circle');
+      if (b) {
+        b.classList.toggle('in-list', data.inList);
+        b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          ${data.inList ? '<polyline points="20 6 9 17 4 12"/>' : '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'}
+        </svg>`;
       }
     });
-    // Update hero btn
     const hBtn = document.getElementById('hero-wl-btn');
     if (hBtn && CATALOG[0]?.id === id) {
       hBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -375,19 +389,18 @@ async function toggleWatchlist(id, btn) {
     if (!document.getElementById('section-mylist').classList.contains('hidden')) renderMyList();
   } catch { showToast('Erreur', true); }
 }
-
 function toggleWatchlistModal() { if (currentModalId) toggleWatchlist(currentModalId, null); }
 
 // ── MY LIST ───────────────────────────────────────────────────────────────────
 async function renderMyList() {
-  const res = await fetch('/api/watchlist');
+  const res  = await fetch('/api/watchlist');
   const data = await res.json();
   watchlist = new Set(data.watchlist || []);
   const items = CATALOG.filter(c => watchlist.has(c.id));
-  const grid = document.getElementById('mylist-grid');
+  const grid  = document.getElementById('mylist-grid');
   const empty = document.getElementById('mylist-empty');
   grid.innerHTML = '';
-  if (!items.length) { empty.classList.remove('hidden'); }
+  if (!items.length) empty.classList.remove('hidden');
   else { empty.classList.add('hidden'); items.forEach((c, i) => grid.appendChild(makeCard(c, i))); }
 }
 
@@ -403,20 +416,18 @@ function showSection(name, linkEl) {
   document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
   if (linkEl) linkEl.classList.add('active');
   if (name === 'mylist') renderMyList();
-  if (name === 'admin') loadAdminData();
+  if (name === 'admin')  loadAdminData();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
 async function loadAdminData() {
-  // Stats
   document.getElementById('stat-content').textContent = CATALOG.length;
-  document.getElementById('stat-films').textContent = CATALOG.filter(c => c.type === 'film' || c.type === 'documentaire' || c.type === 'court-metrage').length;
-  document.getElementById('stat-series').textContent = CATALOG.filter(c => c.type === 'serie').length;
+  document.getElementById('stat-films').textContent   = CATALOG.filter(c => c.type === 'film' || c.type === 'documentaire' || c.type === 'court-metrage').length;
+  document.getElementById('stat-series').textContent  = CATALOG.filter(c => c.type === 'serie').length;
 
-  // Users
   try {
-    const res = await fetch('/api/admin/users');
+    const res  = await fetch('/api/admin/users');
     const data = await res.json();
     document.getElementById('stat-users').textContent = data.total;
     const wrap = document.getElementById('admin-users-table');
@@ -427,7 +438,7 @@ async function loadAdminData() {
         <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Inscription</th></tr></thead>
         <tbody>${data.users.map(u => `
           <tr>
-            <td><div class="user-cell"><div class="user-av">${(u.avatar || u.name[0]).toUpperCase()}</div>${u.name}</div></td>
+            <td><div class="user-cell"><div class="user-av">${(u.avatar||u.name[0]).toUpperCase()}</div>${u.name}</div></td>
             <td>${u.email}</td>
             <td><span class="role-badge ${u.role}">${u.role}</span></td>
             <td>${new Date(u.createdAt).toLocaleDateString('fr-FR')}</td>
@@ -435,9 +446,7 @@ async function loadAdminData() {
         </tbody>
       </table>`;
     }
-  } catch (e) { console.error(e); }
-
-  // Content list
+  } catch(e) { console.error(e); }
   renderAdminContentList();
 }
 
@@ -448,38 +457,294 @@ function renderAdminContentList() {
     return;
   }
   wrap.innerHTML = `<table class="admin-table">
-    <thead><tr><th>Titre</th><th>Type</th><th>Genre</th><th>Année</th><th>Audio</th><th>Qualité</th><th>Action</th></tr></thead>
+    <thead><tr><th>Affiche</th><th>Titre</th><th>Type</th><th>Genre</th><th>Année</th><th>Audio</th><th>Trailer</th><th>Action</th></tr></thead>
     <tbody>${CATALOG.map(c => `
       <tr>
+        <td>${c.posterUrl ? `<img src="${c.posterUrl}" style="width:36px;height:52px;object-fit:cover;border-radius:4px;border:1px solid rgba(255,255,255,0.1)">` : '<div style="width:36px;height:52px;background:rgba(255,255,255,0.05);border-radius:4px;border:1px solid rgba(255,255,255,0.08)"></div>'}</td>
         <td><strong style="color:#fff">${c.title}</strong></td>
         <td>${c.type}</td>
         <td>${c.genre}</td>
         <td>${c.year}</td>
         <td><span class="audio-tag">${c.audio}</span></td>
-        <td>${c.quality || '—'}</td>
+        <td>${c.trailerUrl ? `<a href="${c.trailerUrl}" target="_blank" style="color:var(--cyan);font-size:11px">YT</a>` : '—'}</td>
         <td><button class="btn-delete" onclick="deleteContent('${c.id}')">Supprimer</button></td>
       </tr>`).join('')}
     </tbody>
   </table>`;
 }
 
-function onVideoFileChosen(input) {
-  const label = document.getElementById('video-upload-label');
-  const labelText = document.getElementById('video-file-label-text');
-  if (input.files[0]) {
-    const mb = (input.files[0].size / 1024 / 1024).toFixed(1);
-    labelText.textContent = `${input.files[0].name} (${mb} Mo)`;
-    label.classList.add('has-file');
-  } else {
-    labelText.textContent = 'Choisir un fichier vidéo (mp4, mkv, avi…)';
-    label.classList.remove('has-file');
+// ── TMDB SEARCH ───────────────────────────────────────────────────────────────
+let tmdbTimeout = null;
+function debounceTmdb(val) {
+  clearTimeout(tmdbTimeout);
+  const status = document.getElementById('tmdb-status');
+  const results = document.getElementById('tmdb-results');
+  if (!val.trim()) { results.innerHTML = ''; status.textContent = ''; return; }
+  status.textContent = 'Recherche…';
+  tmdbTimeout = setTimeout(() => doTmdbSearch(val.trim()), 500);
+}
+
+async function doTmdbSearch(q) {
+  const status  = document.getElementById('tmdb-status');
+  const results = document.getElementById('tmdb-results');
+  try {
+    const res  = await fetch(`/api/admin/tmdb-search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    status.textContent = '';
+    if (data.error) { status.textContent = data.error; results.innerHTML = ''; return; }
+    if (!data.results.length) { results.innerHTML = '<p style="color:var(--text-dim);font-size:13px;padding:8px 0">Aucun résultat.</p>'; return; }
+    results.innerHTML = data.results.map(r => `
+      <div class="tmdb-result-card" onclick="selectTmdb(${JSON.stringify(r).replace(/"/g,'&quot;')})">
+        ${r.poster ? `<img src="${r.poster}" class="tmdb-result-poster" alt="">` : `<div class="tmdb-result-poster tmdb-no-poster"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:20px;height:20px;color:var(--text-dim)"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>`}
+        <div class="tmdb-result-info">
+          <div class="tmdb-result-title">${r.title}</div>
+          <div class="tmdb-result-meta">${r.type === 'serie' ? 'Série' : 'Film'} · ${r.year || '?'}</div>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    status.textContent = 'Erreur de connexion TMDB';
+    results.innerHTML = '';
   }
 }
 
+async function selectTmdb(result) {
+  tmdbSelected = result;
+  tmdbDetail   = null;
+  // Pre-fill basic fields
+  document.getElementById('f-title').value = result.title || '';
+  if (result.year) document.getElementById('f-year').value = result.year;
+  if (result.overview) document.getElementById('f-desc').value = result.overview;
+  if (result.type) document.getElementById('f-type').value = result.type;
+
+  // Show TMDB fill buttons
+  ['genre','duration','year','desc','trailer','poster','actors'].forEach(k => {
+    const btn = document.getElementById(`fill-${k}-btn`);
+    if (btn) btn.style.display = 'inline-flex';
+  });
+
+  // Show selected state
+  document.querySelectorAll('.tmdb-result-card').forEach(el => el.classList.remove('selected'));
+  showToast(`"${result.title}" sélectionné — cliquez sur + TMDB pour remplir chaque champ`);
+
+  // Fetch detail (genres, runtime, actors, trailer)
+  const endpoint = result.type === 'serie' ? 'tv' : 'movie';
+  try {
+    const res = await fetch(`/api/admin/tmdb-detail/${endpoint}/${result.tmdbId}`);
+    tmdbDetail = await res.json();
+    showToast('Infos TMDB chargées — utilisez les boutons + TMDB');
+  } catch {}
+}
+
+function fillFromTmdb(field) {
+  if (!tmdbSelected) return;
+  switch(field) {
+    case 'genre':
+      if (tmdbDetail?.genres) document.getElementById('f-genre').value = tmdbDetail.genres;
+      break;
+    case 'duration':
+      if (tmdbDetail?.runtime) document.getElementById('f-duration').value = tmdbDetail.runtime;
+      break;
+    case 'year':
+      if (tmdbSelected.year) document.getElementById('f-year').value = tmdbSelected.year;
+      break;
+    case 'description':
+      if (tmdbSelected.overview) document.getElementById('f-desc').value = tmdbSelected.overview;
+      break;
+    case 'trailer':
+      if (tmdbDetail?.trailerUrl) document.getElementById('f-trailer').value = tmdbDetail.trailerUrl;
+      break;
+    case 'poster':
+      if (tmdbSelected.poster) {
+        document.getElementById('f-poster-url').value = tmdbSelected.poster;
+        const prev = document.getElementById('poster-preview-img');
+        if (prev) { prev.src = tmdbSelected.poster; document.getElementById('poster-preview-wrap').style.display='flex'; }
+        document.getElementById('poster-upload-label').style.display='none';
+      }
+      break;
+    case 'actors':
+      if (tmdbDetail?.actors?.length) {
+        clearActors();
+        tmdbDetail.actors.forEach(a => addActorRow(a.name, a.photo));
+      }
+      break;
+  }
+  showToast(`Champ rempli depuis TMDB`);
+}
+
+// ── ACTORS (Admin form) ───────────────────────────────────────────────────────
+let actorCount = 0;
+function addActorRow(name = '', photo = '') {
+  const list = document.getElementById('actors-list');
+  const id   = actorCount++;
+  const div  = document.createElement('div');
+  div.className  = 'actor-row';
+  div.dataset.id = id;
+
+  const photoPreview = photo ? `<img src="${photo}" class="actor-photo-preview" alt="">` : '';
+
+  div.innerHTML = `
+    <input type="text" class="form-input actor-name-input" placeholder="Nom de l'acteur" value="${name.replace(/"/g,'&quot;')}" style="flex:1"/>
+    <input type="url"  class="form-input actor-photo-input" placeholder="URL photo" value="${photo.replace(/"/g,'&quot;')}" style="flex:1" oninput="updateActorPhoto(this,${id})"/>
+    <div class="actor-photo-wrap" id="actor-photo-${id}">${photoPreview}</div>
+    <button type="button" class="actor-remove-btn" onclick="removeActorRow(${id})">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>`;
+  list.appendChild(div);
+}
+
+function updateActorPhoto(input, id) {
+  const wrap = document.getElementById(`actor-photo-${id}`);
+  if (!wrap) return;
+  wrap.innerHTML = input.value ? `<img src="${input.value}" class="actor-photo-preview" alt="" onerror="this.style.display='none'">` : '';
+}
+
+function removeActorRow(id) {
+  const el = document.querySelector(`.actor-row[data-id="${id}"]`);
+  if (el) el.remove();
+}
+function clearActors() { document.getElementById('actors-list').innerHTML = ''; actorCount = 0; }
+
+function getActors() {
+  return [...document.querySelectorAll('.actor-row')].map(row => ({
+    name:  row.querySelector('.actor-name-input').value.trim(),
+    photo: row.querySelector('.actor-photo-input').value.trim(),
+  })).filter(a => a.name);
+}
+
+// ── POSTER UPLOAD ─────────────────────────────────────────────────────────────
+function onPosterChosen(input) {
+  if (!input.files[0]) return;
+  const file  = input.files[0];
+  const label = document.getElementById('poster-upload-label');
+  const prog  = document.getElementById('poster-upload-progress');
+  const bar   = document.getElementById('poster-progress-bar');
+
+  label.style.display = 'none';
+  prog.style.display  = 'block';
+
+  const fd = new FormData();
+  fd.append('image', file);
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/admin/upload-image');
+  xhr.upload.onprogress = ev => { if (ev.lengthComputable) bar.style.width = Math.round(ev.loaded/ev.total*100)+'%'; };
+  xhr.onload = () => {
+    prog.style.display = 'none';
+    try {
+      const data = JSON.parse(xhr.responseText);
+      if (data.imageUrl) {
+        bgPoster.url = data.imageUrl;
+        document.getElementById('f-poster-url').value = data.imageUrl;
+        const prev = document.getElementById('poster-preview-img');
+        prev.src = data.imageUrl;
+        document.getElementById('poster-preview-wrap').style.display = 'flex';
+        showToast('Image uploadée');
+      }
+    } catch { label.style.display = 'flex'; }
+  };
+  xhr.onerror = () => { prog.style.display = 'none'; label.style.display = 'flex'; showToast('Erreur upload image', true); };
+  xhr.send(fd);
+
+  // Show local preview immediately
+  const reader = new FileReader();
+  reader.onload = e => {
+    const prev = document.getElementById('poster-preview-img');
+    prev.src = e.target.result;
+    document.getElementById('poster-preview-wrap').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePoster() {
+  bgPoster.url = null;
+  document.getElementById('f-poster-url').value = '';
+  document.getElementById('poster-preview-wrap').style.display = 'none';
+  document.getElementById('poster-upload-label').style.display = 'flex';
+  const input = document.getElementById('f-poster');
+  if (input) input.value = '';
+  const tmdbUrl = document.getElementById('f-poster-url');
+  if (tmdbUrl) tmdbUrl.value = '';
+}
+
+// ── VIDEO BACKGROUND UPLOAD ───────────────────────────────────────────────────
+function onVideoFileChosen(input) {
+  const labelText = document.getElementById('video-file-label-text');
+  const label     = document.getElementById('video-upload-label');
+  const progWrap  = document.getElementById('video-upload-progress');
+  const progBar   = document.getElementById('video-progress-bar');
+  const progText  = document.getElementById('video-progress-text');
+  const globalInd = document.getElementById('global-upload-indicator');
+  const globalBar = document.getElementById('global-upload-bar');
+  const globalPct = document.getElementById('global-upload-pct');
+  const globalTxt = document.getElementById('global-upload-text');
+
+  if (!input.files[0]) return;
+  const file = input.files[0];
+  const mb   = (file.size / 1024 / 1024).toFixed(1);
+  if (labelText) labelText.textContent = `${file.name} (${mb} Mo)`;
+  if (label) label.classList.add('has-file');
+
+  // Reset previous upload
+  if (bgUpload.xhr) { bgUpload.xhr.abort(); }
+  bgUpload.active   = false;
+  bgUpload.filename = null;
+  bgUpload.videoUrl = null;
+  document.getElementById('f-video-url').value = '';
+
+  // Start background upload immediately
+  const fd = new FormData();
+  fd.append('video', file);
+  const xhr = new XMLHttpRequest();
+  bgUpload.xhr = xhr;
+  bgUpload.active = true;
+
+  progWrap.style.display  = 'block';
+  globalInd.style.display = 'flex';
+  if (globalTxt) globalTxt.textContent = `Upload : ${file.name}`;
+
+  xhr.open('POST', '/api/admin/upload-video');
+  xhr.upload.onprogress = ev => {
+    if (!ev.lengthComputable) return;
+    const pct = Math.round(ev.loaded / ev.total * 100);
+    bgUpload.pct = pct;
+    if (progBar)  progBar.style.width  = pct + '%';
+    if (progText) progText.textContent = `Upload : ${pct}% — ${(ev.loaded/1024/1024).toFixed(1)} / ${(ev.total/1024/1024).toFixed(1)} Mo`;
+    if (globalBar) globalBar.style.width = pct + '%';
+    if (globalPct) globalPct.textContent = pct + '%';
+  };
+  xhr.onload = () => {
+    bgUpload.active = false;
+    progWrap.style.display = 'none';
+    try {
+      const data = JSON.parse(xhr.responseText);
+      if (data.videoUrl) {
+        bgUpload.videoUrl = data.videoUrl;
+        bgUpload.filename = data.filename;
+        document.getElementById('f-video-url').value = data.videoUrl;
+        if (globalTxt) globalTxt.textContent = `Upload terminé : ${file.name}`;
+        if (globalPct) globalPct.textContent = '100%';
+        if (globalBar) globalBar.style.width = '100%';
+        showToast('Vidéo uploadée en arrière-plan');
+        setTimeout(() => { globalInd.style.display = 'none'; }, 3000);
+      }
+    } catch {
+      globalInd.style.display = 'none';
+      showToast('Erreur upload vidéo', true);
+    }
+  };
+  xhr.onerror = () => {
+    bgUpload.active = false;
+    progWrap.style.display  = 'none';
+    globalInd.style.display = 'none';
+    showToast('Erreur upload vidéo', true);
+  };
+  xhr.send(fd);
+}
+
+// ── SUBMIT FORM ───────────────────────────────────────────────────────────────
 async function submitAddContent(e) {
   e.preventDefault();
-  const errDiv = document.getElementById('form-error');
-  const btn = document.getElementById('form-submit-btn');
+  const errDiv  = document.getElementById('form-error');
+  const btn     = document.getElementById('form-submit-btn');
   const btnText = document.getElementById('form-btn-text');
   const spinner = document.getElementById('form-spinner');
   errDiv.classList.add('hidden');
@@ -495,108 +760,95 @@ async function submitAddContent(e) {
     return;
   }
 
+  // Wait if video is still uploading
+  if (bgUpload.active) {
+    errDiv.textContent = 'Upload vidéo en cours, veuillez patienter…';
+    errDiv.classList.remove('hidden');
+    return;
+  }
+
   btn.disabled = true; btnText.style.display = 'none'; spinner.style.display = 'block';
 
-  const rows = [...document.querySelectorAll('input[name="rows"]:checked')].map(i => i.value);
-  const videoFile = document.getElementById('f-video')?.files[0];
+  const rows       = [...document.querySelectorAll('input[name="rows"]:checked')].map(i => i.value);
+  const posterUrl  = document.getElementById('f-poster-url').value.trim();
+  const videoUrl   = document.getElementById('f-video-url').value.trim();
+  const trailerUrl = document.getElementById('f-trailer').value.trim();
+  const actors     = getActors();
 
-  // Use FormData so we can include the video file
   const fd = new FormData();
-  fd.append('title', title);
-  fd.append('genre', genre);
-  fd.append('type', type);
-  fd.append('audio', audio);
-  fd.append('duration', document.getElementById('f-duration').value.trim());
-  fd.append('year', document.getElementById('f-year').value || '');
-  fd.append('rating', document.getElementById('f-rating').value || '');
-  fd.append('quality', document.getElementById('f-quality').value);
+  fd.append('title',       title);
+  fd.append('genre',       genre);
+  fd.append('type',        type);
+  fd.append('audio',       audio);
+  fd.append('duration',    document.getElementById('f-duration').value.trim());
+  fd.append('year',        document.getElementById('f-year').value || '');
+  fd.append('quality',     document.getElementById('f-quality').value);
   fd.append('description', document.getElementById('f-desc').value.trim());
+  fd.append('trailerUrl',  trailerUrl);
+  fd.append('posterUrl',   posterUrl);
+  fd.append('videoUrl',    videoUrl);
+  fd.append('actors',      JSON.stringify(actors));
   rows.forEach(r => fd.append('rows', r));
-  if (videoFile) fd.append('video', videoFile);
-
-  // Show upload progress if there's a video file
-  const progressWrap = document.getElementById('video-upload-progress');
-  const progressBar  = document.getElementById('video-progress-bar');
-  const progressText = document.getElementById('video-progress-text');
 
   try {
-    if (videoFile) {
-      // Use XMLHttpRequest for progress tracking
-      const data = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', '/api/admin/content');
-        if (progressWrap) progressWrap.style.display = 'block';
-        xhr.upload.onprogress = ev => {
-          if (ev.lengthComputable && progressBar && progressText) {
-            const pct = Math.round((ev.loaded / ev.total) * 100);
-            progressBar.style.width = pct + '%';
-            progressText.textContent = `Upload : ${pct}% — ${(ev.loaded/1024/1024).toFixed(1)} / ${(ev.total/1024/1024).toFixed(1)} Mo`;
-          }
-        };
-        xhr.onload = () => {
-          try { resolve(JSON.parse(xhr.responseText)); }
-          catch { reject(new Error('Réponse invalide')); }
-        };
-        xhr.onerror = () => reject(new Error('Erreur réseau'));
-        xhr.send(fd);
-      });
-      if (!data.catalog) throw new Error(data.error || 'Erreur');
-      CATALOG = data.catalog;
-      showToast(`"${title}" ajouté ✓`);
-    } else {
-      const res = await fetch('/api/admin/content', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erreur');
-      CATALOG = data.catalog;
-      showToast(`"${title}" ajouté ✓`);
-    }
+    const res  = await fetch('/api/admin/content', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    CATALOG = data.catalog;
+    showToast(`"${title}" ajouté`);
     resetForm();
     renderRows();
     renderResumeRow();
     renderHero();
     renderAdminContentList();
     document.getElementById('stat-content').textContent = CATALOG.length;
-    document.getElementById('stat-films').textContent = CATALOG.filter(c => c.type === 'film' || c.type === 'documentaire' || c.type === 'court-metrage').length;
-    document.getElementById('stat-series').textContent = CATALOG.filter(c => c.type === 'serie').length;
-  } catch (err) {
+    document.getElementById('stat-films').textContent   = CATALOG.filter(c => c.type==='film'||c.type==='documentaire'||c.type==='court-metrage').length;
+    document.getElementById('stat-series').textContent  = CATALOG.filter(c => c.type==='serie').length;
+  } catch(err) {
     errDiv.textContent = err.message;
     errDiv.classList.remove('hidden');
   } finally {
     btn.disabled = false; btnText.style.display = 'block'; spinner.style.display = 'none';
-    if (progressWrap) progressWrap.style.display = 'none';
-    if (progressBar) progressBar.style.width = '0%';
   }
 }
 
 async function deleteContent(id) {
   if (!confirm('Supprimer ce contenu ?')) return;
   try {
-    const res = await fetch(`/api/admin/content/${id}`, { method: 'DELETE' });
+    const res  = await fetch(`/api/admin/content/${id}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     CATALOG = data.catalog;
     showToast('Contenu supprimé');
-    renderRows();
-    renderHero();
-    renderAdminContentList();
+    renderRows(); renderHero(); renderAdminContentList();
     document.getElementById('stat-content').textContent = CATALOG.length;
-    document.getElementById('stat-films').textContent = CATALOG.filter(c => c.type === 'film' || c.type === 'documentaire' || c.type === 'court-metrage').length;
-    document.getElementById('stat-series').textContent = CATALOG.filter(c => c.type === 'serie').length;
-  } catch (err) { showToast(err.message, true); }
+    document.getElementById('stat-films').textContent   = CATALOG.filter(c=>c.type==='film'||c.type==='documentaire'||c.type==='court-metrage').length;
+    document.getElementById('stat-series').textContent  = CATALOG.filter(c=>c.type==='serie').length;
+  } catch(err) { showToast(err.message, true); }
 }
 
 function resetForm() {
   document.getElementById('add-content-form').reset();
   document.getElementById('form-error').classList.add('hidden');
-  // Reset video file label
-  const labelText = document.getElementById('video-file-label-text');
-  const label = document.getElementById('video-upload-label');
-  if (labelText) labelText.textContent = 'Choisir un fichier vidéo (mp4, mkv, avi…)';
-  if (label) label.classList.remove('has-file');
+  document.getElementById('video-file-label-text').textContent = 'Choisir un fichier vidéo (mp4, mkv, avi…)';
+  document.getElementById('video-upload-label').classList.remove('has-file');
+  document.getElementById('f-video-url').value = '';
+  document.getElementById('f-poster-url').value = '';
+  document.getElementById('poster-preview-wrap').style.display = 'none';
+  document.getElementById('poster-upload-label').style.display = 'flex';
+  document.getElementById('tmdb-results').innerHTML = '';
+  document.getElementById('tmdb-input').value = '';
+  document.getElementById('tmdb-status').textContent = '';
+  clearActors();
+  tmdbSelected = null; tmdbDetail = null;
+  ['genre','duration','year','desc','trailer','poster','actors'].forEach(k => {
+    const btn = document.getElementById(`fill-${k}-btn`);
+    if (btn) btn.style.display = 'none';
+  });
 }
 
 function updateDurationPlaceholder() {
-  const type = document.getElementById('f-type').value;
+  const type  = document.getElementById('f-type').value;
   const input = document.getElementById('f-duration');
   input.placeholder = type === 'serie' ? 'ex : 6 épisodes' : 'ex : 1h 52m';
 }
@@ -604,7 +856,7 @@ function updateDurationPlaceholder() {
 // ── SEARCH ─────────────────────────────────────────────────────────────────────
 let searchTimeout = null;
 function toggleSearch() {
-  const wrap = document.getElementById('search-wrap');
+  const wrap   = document.getElementById('search-wrap');
   const isOpen = wrap.classList.contains('search-open');
   if (isOpen) {
     wrap.classList.remove('search-open');
@@ -630,26 +882,20 @@ function doSearch(q) {
       const el = document.getElementById(`section-${s}`);
       if (el) el.classList.add('hidden');
     });
-    const overlay = document.getElementById('search-overlay');
-    overlay.classList.remove('hidden');
+    document.getElementById('search-overlay').classList.remove('hidden');
     document.getElementById('search-query-label').textContent = `"${q}"`;
-
     const ql = q.toLowerCase();
     const results = CATALOG.filter(c =>
-      c.title.toLowerCase().includes(ql) ||
-      c.genre.toLowerCase().includes(ql) ||
-      c.description.toLowerCase().includes(ql) ||
-      c.audio?.toLowerCase().includes(ql) ||
-      c.type?.toLowerCase().includes(ql)
+      c.title.toLowerCase().includes(ql) || c.genre.toLowerCase().includes(ql) ||
+      (c.description||'').toLowerCase().includes(ql) ||
+      c.audio?.toLowerCase().includes(ql) || c.type?.toLowerCase().includes(ql)
     );
-
     document.getElementById('search-count').textContent =
       results.length ? ` — ${results.length} résultat${results.length > 1 ? 's' : ''}` : '';
-
     const track = document.getElementById('search-results-track');
     const empty = document.getElementById('search-empty');
     track.innerHTML = '';
-    if (!results.length) { empty.classList.remove('hidden'); }
+    if (!results.length) empty.classList.remove('hidden');
     else { empty.classList.add('hidden'); results.forEach((c, i) => track.appendChild(makeCard(c, i))); }
   }, 200);
 }
@@ -665,23 +911,22 @@ function initHeroCanvas() {
   const particles = Array.from({ length: 130 }, () => ({
     x: Math.random(), y: Math.random(),
     size: 0.4 + Math.random() * 2.8,
-    vx: (Math.random() - 0.5) * 0.00015,
-    vy: (Math.random() - 0.5) * 0.00015,
+    vx: (Math.random() - 0.5) * 0.00015, vy: (Math.random() - 0.5) * 0.00015,
     opacity: Math.random() * 0.6,
     color: ['#00d4ff','#bf40ff','#ff2d78','#7b2fff'][Math.floor(Math.random() * 4)],
     tw: Math.random() * Math.PI * 2,
   }));
   const orbs = [
-    { x: 0.72, y: 0.32, r: 0.24, c: 'rgba(123,47,255,0.22)' },
-    { x: 0.88, y: 0.62, r: 0.16, c: 'rgba(0,212,255,0.14)' },
+    { x:0.72, y:0.32, r:0.24, c:'rgba(123,47,255,0.22)' },
+    { x:0.88, y:0.62, r:0.16, c:'rgba(0,212,255,0.14)' },
   ];
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     orbs.forEach(o => {
       const grd = ctx.createRadialGradient(o.x*canvas.width, o.y*canvas.height, 0, o.x*canvas.width, o.y*canvas.height, o.r*canvas.width);
       grd.addColorStop(0, o.c); grd.addColorStop(1, 'transparent');
-      ctx.fillStyle = grd;
-      ctx.beginPath(); ctx.arc(o.x*canvas.width, o.y*canvas.height, o.r*canvas.width, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = grd; ctx.beginPath();
+      ctx.arc(o.x*canvas.width, o.y*canvas.height, o.r*canvas.width, 0, Math.PI*2); ctx.fill();
     });
     particles.forEach(p => {
       p.x += p.vx; p.y += p.vy;
@@ -689,8 +934,7 @@ function initHeroCanvas() {
       if (p.y < 0) p.y = 1; if (p.y > 1) p.y = 0;
       p.tw += 0.018;
       ctx.globalAlpha = p.opacity * (0.4 + 0.6 * Math.sin(p.tw));
-      ctx.shadowBlur = 8; ctx.shadowColor = p.color;
-      ctx.fillStyle = p.color;
+      ctx.shadowBlur = 8; ctx.shadowColor = p.color; ctx.fillStyle = p.color;
       ctx.beginPath(); ctx.arc(p.x*canvas.width, p.y*canvas.height, p.size, 0, Math.PI*2); ctx.fill();
     });
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
@@ -704,119 +948,233 @@ function initNavbarScroll() {
   const nav = document.getElementById('navbar');
   window.addEventListener('scroll', () => { nav.classList.toggle('scrolled', window.scrollY > 60); }, { passive: true });
 }
-
-function scrollRow(trackId, dir) {
-  const t = document.getElementById(trackId);
-  if (t) t.scrollBy({ left: dir * 450, behavior: 'smooth' });
-}
-
+function scrollRow(trackId, dir) { const t = document.getElementById(trackId); if (t) t.scrollBy({ left: dir * 450, behavior: 'smooth' }); }
 function toggleAvatarMenu() { document.getElementById('avatar-menu').classList.toggle('open'); }
-function closeAvatarMenu() { document.getElementById('avatar-menu').classList.remove('open'); }
-document.addEventListener('click', e => {
-  if (!document.getElementById('avatar-wrap')?.contains(e.target)) closeAvatarMenu();
-});
-
-async function logout() {
-  await fetch('/api/logout', { method: 'POST' });
-  window.location.href = '/login';
-}
+function closeAvatarMenu()  { document.getElementById('avatar-menu').classList.remove('open'); }
+document.addEventListener('click', e => { if (!document.getElementById('avatar-wrap')?.contains(e.target)) closeAvatarMenu(); });
+async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login'; }
 
 // ── MODAL ──────────────────────────────────────────────────────────────────────
-function openModal(id) {
+async function openModal(id) {
   const item = CATALOG.find(c => c.id === id);
   if (!item) return;
   currentModalId = id;
-  document.getElementById('modal-title-text').textContent = item.title;
+
+  document.getElementById('modal-title-text').textContent    = item.title;
   document.getElementById('modal-playing-title').textContent = item.title;
-  document.getElementById('modal-desc-text').textContent = item.description;
-  document.getElementById('total-time').textContent = item.duration || '—';
+  document.getElementById('modal-desc-text').textContent     = item.description || '';
+  document.getElementById('total-time').textContent          = item.duration || '—';
+
   const tags = document.getElementById('modal-tags');
   tags.innerHTML = [
-    item.quality ? `<span class="tag-badge">${item.quality}</span>` : '',
+    item.quality   ? `<span class="tag-badge">${item.quality}</span>` : '',
     `<span class="tag-badge">${item.audio}</span>`,
-    item.rating ? `<span class="rating-badge">⭐ ${item.rating}</span>` : '',
-    item.year ? `<span class="tag-badge">${item.year}</span>` : '',
+    item.year      ? `<span class="tag-badge">${item.year}</span>`    : '',
+    item.genre     ? `<span class="tag-badge genre-badge">${item.genre}</span>` : '',
+    item.duration  ? `<span class="tag-badge">${item.duration}</span>` : '',
   ].join('');
+
   document.getElementById('modal-watchlist-btn').textContent = watchlist.has(id) ? '✓ Dans ma liste' : '+ Ma liste';
   document.getElementById('video-modal').classList.remove('modal-hidden');
   document.body.style.overflow = 'hidden';
 
-  const videoEl = document.getElementById('player-video');
-  const canvas  = document.getElementById('player-canvas');
-  const overlay = document.getElementById('player-overlay');
-  const resume  = loadResume();
-
-  if (item.videoUrl) {
-    // ── Real video mode ──────────────────────────────────────────────
-    videoEl.style.display = 'block';
-    canvas.style.display  = 'none';
-    if (overlay) overlay.style.display = 'none';
-
-    videoEl.src = item.videoUrl;
-    videoEl.controls = true;
-    videoEl.load();
-
-    // Restore saved position
-    videoEl.addEventListener('loadedmetadata', function onMeta() {
-      videoEl.removeEventListener('loadedmetadata', onMeta);
-      if (resume && resume.id === id && resume.currentTime > 3) {
-        videoEl.currentTime = resume.currentTime;
-        showToast(`▶ Reprise à ${formatTime(Math.round(resume.currentTime))}`);
-      }
-      videoEl.play().catch(() => {});
-    });
-
-    // Save position every 5 s while playing
-    if (videoEl._saveInterval) clearInterval(videoEl._saveInterval);
-    videoEl._saveInterval = setInterval(() => {
-      if (!videoEl.paused && videoEl.currentTime > 3) saveProgress();
-    }, 5000);
+  // Actors
+  const actorsWrap = document.getElementById('modal-actors-wrap');
+  const actorsList = document.getElementById('modal-actors-list');
+  if (item.actors && item.actors.length) {
+    actorsWrap.style.display = '';
+    actorsList.innerHTML = item.actors.map(a => `
+      <div class="modal-actor">
+        ${a.photo ? `<img src="${a.photo}" class="modal-actor-photo" alt="${a.name}" onerror="this.style.display='none'">` : `<div class="modal-actor-photo-placeholder">${a.name[0]}</div>`}
+        <div class="modal-actor-name">${a.name}</div>
+      </div>`).join('');
   } else {
-    // ── Canvas animation mode ────────────────────────────────────────
-    videoEl.style.display = 'none';
-    canvas.style.display  = '';
-    if (overlay) overlay.style.display = '';
+    actorsWrap.style.display = 'none';
+  }
 
-    if (resume && resume.id === id && resume.progressPct > 1 && resume.progressPct < 98) {
-      progressPct = resume.progressPct;
-      showToast(`▶ Reprise à ${Math.round(progressPct)}%`);
+  // Load user rating
+  try {
+    const rRes  = await fetch(`/api/rating/${id}`);
+    const rData = await rRes.json();
+    updateStarUI(rData.myRating, rData.avg, rData.count);
+  } catch {}
+
+  // Show tabs based on what's available
+  const hasTrailer = !!item.trailerUrl;
+  const hasVideo   = !!item.videoUrl;
+  document.getElementById('tab-trailer').style.display = hasTrailer ? '' : 'none';
+  document.getElementById('tab-watch').style.display   = hasVideo   ? '' : 'none';
+
+  // Default tab
+  if (hasTrailer) switchModalTab('trailer', item);
+  else if (hasVideo) switchModalTab('watch', item);
+  else switchModalTab('info', item);
+}
+
+function switchModalTab(tab, itemOverride) {
+  currentModalTab = tab;
+  const item = itemOverride || CATALOG.find(c => c.id === currentModalId);
+  if (!item) return;
+
+  // Update tab button states
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  const activeTab = document.getElementById(`tab-${tab}`);
+  if (activeTab) activeTab.classList.add('active');
+
+  // Stop current playback
+  const videoEl = document.getElementById('player-video');
+  if (videoEl && !videoEl.paused) videoEl.pause();
+  if (playerRaf) { cancelAnimationFrame(playerRaf); playerRaf = null; }
+  if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
+  isPlaying = false;
+
+  const ytFrame   = document.getElementById('player-yt');
+  const canvas    = document.getElementById('player-canvas');
+  const overlay   = document.getElementById('player-overlay');
+  const playerArea = document.getElementById('modal-player-area');
+  const infoPanel = document.getElementById('modal-info-panel');
+
+  if (tab === 'info') {
+    // Hide player, show only info below
+    playerArea.style.display = 'none';
+    infoPanel.classList.add('info-expanded');
+    ytFrame.style.display  = 'none';
+    videoEl.style.display  = 'none';
+    canvas.style.display   = 'none';
+    if (overlay) overlay.style.display = 'none';
+    ytFrame.src = '';
+    return;
+  }
+
+  playerArea.style.display = '';
+  infoPanel.classList.remove('info-expanded');
+
+  if (tab === 'trailer' && item.trailerUrl) {
+    ytFrame.style.display  = 'block';
+    videoEl.style.display  = 'none';
+    canvas.style.display   = 'none';
+    if (overlay) overlay.style.display = 'none';
+    const videoId = extractYouTubeId(item.trailerUrl);
+    ytFrame.src = videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0` : '';
+  } else if (tab === 'watch') {
+    ytFrame.src = '';
+    ytFrame.style.display = 'none';
+    const resume = loadResume();
+
+    if (item.videoUrl) {
+      videoEl.style.display = 'block';
+      canvas.style.display  = 'none';
+      if (overlay) overlay.style.display = 'none';
+      videoEl.src = item.videoUrl;
+      videoEl.controls = true;
+      videoEl.load();
+      videoEl.addEventListener('loadedmetadata', function onMeta() {
+        videoEl.removeEventListener('loadedmetadata', onMeta);
+        if (resume && resume.id === currentModalId && resume.currentTime > 3) {
+          videoEl.currentTime = resume.currentTime;
+          showToast(`Reprise à ${formatTime(Math.round(resume.currentTime))}`);
+        }
+        videoEl.play().catch(() => {});
+      });
+      if (videoEl._saveInterval) clearInterval(videoEl._saveInterval);
+      videoEl._saveInterval = setInterval(() => { if (!videoEl.paused && videoEl.currentTime > 3) saveProgress(); }, 5000);
     } else {
-      progressPct = 0;
+      videoEl.style.display = 'none';
+      canvas.style.display  = '';
+      if (overlay) overlay.style.display = '';
+      if (resume && resume.id === currentModalId && resume.progressPct > 1 && resume.progressPct < 98) {
+        progressPct = resume.progressPct;
+        showToast(`Reprise à ${Math.round(progressPct)}%`);
+      } else { progressPct = 0; }
+      setTimeout(() => { startPlayerCanvas(); startProgressTimer(item.duration); }, 100);
     }
-    setTimeout(() => { startPlayerCanvas(); startProgressTimer(item.duration); }, 100);
   }
 }
 
+function extractYouTubeId(url) {
+  if (!url) return null;
+  const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
 function closeModal() {
-  saveProgress(); // persist before closing
+  saveProgress();
   const videoEl = document.getElementById('player-video');
   if (videoEl) {
     if (videoEl._saveInterval) { clearInterval(videoEl._saveInterval); videoEl._saveInterval = null; }
     if (!videoEl.paused) videoEl.pause();
-    videoEl.src = '';
-    videoEl.controls = false;
+    videoEl.src = ''; videoEl.controls = false;
   }
+  const ytFrame = document.getElementById('player-yt');
+  if (ytFrame) ytFrame.src = '';
   document.getElementById('video-modal').classList.add('modal-hidden');
+  document.getElementById('modal-player-area').style.display = '';
+  document.getElementById('modal-info-panel').classList.remove('info-expanded');
   document.body.style.overflow = '';
   isPlaying = false;
   if (playerRaf) cancelAnimationFrame(playerRaf);
   if (progressInterval) clearInterval(progressInterval);
   playerRaf = null; progressInterval = null; currentModalId = null;
-  renderResumeRow(); // refresh the "Continue watching" row
+  renderResumeRow();
 }
+
+// ── STAR RATING ───────────────────────────────────────────────────────────────
+function updateStarUI(myRating, avg, count) {
+  const stars = document.querySelectorAll('.star');
+  stars.forEach(s => {
+    const v = parseInt(s.dataset.v);
+    s.classList.toggle('filled', v <= myRating);
+  });
+  const cr = document.getElementById('community-rating');
+  if (cr) {
+    cr.innerHTML = avg > 0
+      ? `<span style="color:#ffd700">${renderStarsSmall(avg)}</span> ${avg}/5 <span style="color:var(--text-dim)">(${count} avis)</span>`
+      : `<span style="color:var(--text-dim)">Pas encore noté</span>`;
+  }
+}
+
+async function rateItem(value) {
+  if (!currentModalId) return;
+  try {
+    const res  = await fetch(`/api/rating/${currentModalId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating: value }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    updateStarUI(data.myRating, data.avg, data.count);
+    // Update catalog entry
+    const item = CATALOG.find(c => c.id === currentModalId);
+    if (item) item.communityRating = { avg: data.avg, count: data.count };
+    renderRows();
+    showToast(`Note enregistrée : ${value}/5`);
+  } catch(e) { showToast(e.message, true); }
+}
+
+// Star hover effects
+document.addEventListener('DOMContentLoaded', () => {});
+document.addEventListener('mouseover', e => {
+  if (!e.target.classList.contains('star')) return;
+  const v = parseInt(e.target.dataset.v);
+  document.querySelectorAll('.star').forEach(s => {
+    s.classList.toggle('hover', parseInt(s.dataset.v) <= v);
+  });
+});
+document.addEventListener('mouseout', e => {
+  if (!e.target.classList.contains('star')) return;
+  document.querySelectorAll('.star').forEach(s => s.classList.remove('hover'));
+});
 
 // ── PLAYER CANVAS ─────────────────────────────────────────────────────────────
 function startPlayerCanvas() {
   const canvas = document.getElementById('player-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  canvas.width = canvas.offsetWidth || 860;
-  canvas.height = canvas.offsetHeight || 484;
+  canvas.width = canvas.offsetWidth || 860; canvas.height = canvas.offsetHeight || 484;
   const lines = Array.from({ length: 45 }, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    len: 30 + Math.random() * 100,
-    speed: 1.5 + Math.random() * 5,
+    x: Math.random() * canvas.width, y: Math.random() * canvas.height,
+    len: 30 + Math.random() * 100, speed: 1.5 + Math.random() * 5,
     color: ['#00d4ff','#bf40ff','#ff2d78'][Math.floor(Math.random() * 3)],
     op: 0.2 + Math.random() * 0.5, w: 0.5 + Math.random() * 2,
   }));
@@ -828,9 +1186,6 @@ function startPlayerCanvas() {
     const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
     bg.addColorStop(0, '#000010'); bg.addColorStop(1, '#0a0020');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = 'rgba(191,64,255,0.06)'; ctx.lineWidth = 0.5;
-    for (let x = 0; x < canvas.width; x += 44) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
-    for (let y = 0; y < canvas.height; y += 44) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
     lines.forEach(l => {
       l.y += l.speed;
       if (l.y > canvas.height + l.len) { l.y = -l.len; l.x = Math.random() * canvas.width; }
@@ -848,10 +1203,6 @@ function startPlayerCanvas() {
     const orb = ctx.createRadialGradient(cx, cy, 0, cx, cy, 140 * pulse);
     orb.addColorStop(0, 'rgba(191,64,255,0.28)'); orb.addColorStop(0.5, 'rgba(0,212,255,0.08)'); orb.addColorStop(1, 'transparent');
     ctx.fillStyle = orb; ctx.beginPath(); ctx.arc(cx, cy, 200, 0, Math.PI * 2); ctx.fill();
-    ctx.globalAlpha = 0.07; ctx.fillStyle = '#fff';
-    ctx.font = 'bold 10px "Rajdhani",sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('APPINOX', cx, canvas.height - 18);
-    ctx.globalAlpha = 1;
     playerRaf = requestAnimationFrame(draw);
   }
   if (playerRaf) cancelAnimationFrame(playerRaf);
@@ -864,16 +1215,14 @@ function togglePlay() {
     isPlaying = false;
     if (playerRaf) cancelAnimationFrame(playerRaf);
     icon.innerHTML = '<polygon points="5,3 19,12 5,21"/>';
-  } else {
-    startPlayerCanvas();
-  }
+  } else { startPlayerCanvas(); }
 }
 
 function restartPlayer() {
   progressPct = 0;
   document.getElementById('progress-fill').style.width = '0%';
   document.getElementById('progress-thumb').style.left = '0%';
-  document.getElementById('current-time').textContent = '0:00';
+  document.getElementById('current-time').textContent  = '0:00';
 }
 
 function seekTo(e, bar) {
@@ -889,9 +1238,7 @@ function toggleMute() {
     ? `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>`
     : `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>`;
 }
-
 function setVolume(v) { isMuted = v == 0; }
-
 function toggleFullscreen() {
   const el = document.querySelector('.modal-player');
   if (!document.fullscreenElement) el.requestFullscreen?.();
@@ -902,25 +1249,22 @@ function startProgressTimer(duration) {
   if (progressInterval) clearInterval(progressInterval);
   const totalSec = parseDuration(duration);
   let saveTick = 0;
-  // Apply any restored progress to the UI immediately
-  const fillEl = document.getElementById('progress-fill');
+  const fillEl  = document.getElementById('progress-fill');
   const thumbEl = document.getElementById('progress-thumb');
-  const ctEl = document.getElementById('current-time');
-  if (fillEl) fillEl.style.width = progressPct + '%';
-  if (thumbEl) thumbEl.style.left = progressPct + '%';
-  if (ctEl) ctEl.textContent = formatTime(Math.floor((progressPct / 100) * totalSec));
-
+  const ctEl    = document.getElementById('current-time');
+  if (fillEl)  fillEl.style.width   = progressPct + '%';
+  if (thumbEl) thumbEl.style.left   = progressPct + '%';
+  if (ctEl)    ctEl.textContent = formatTime(Math.floor((progressPct / 100) * totalSec));
   progressInterval = setInterval(() => {
     if (!isPlaying) return;
     progressPct += (100 / totalSec) * 0.25;
     if (progressPct >= 100) { progressPct = 0; clearResume(currentModalId); }
-    const fill = document.getElementById('progress-fill');
+    const fill  = document.getElementById('progress-fill');
     const thumb = document.getElementById('progress-thumb');
-    const ct = document.getElementById('current-time');
-    if (fill) fill.style.width = progressPct + '%';
-    if (thumb) thumb.style.left = progressPct + '%';
-    if (ct) ct.textContent = formatTime(Math.floor((progressPct / 100) * totalSec));
-    // Save to localStorage every ~5 seconds (20 ticks × 250ms)
+    const ct    = document.getElementById('current-time');
+    if (fill)  fill.style.width  = progressPct + '%';
+    if (thumb) thumb.style.left  = progressPct + '%';
+    if (ct)    ct.textContent = formatTime(Math.floor((progressPct / 100) * totalSec));
     if (++saveTick % 20 === 0) saveProgress();
   }, 250);
 }
@@ -929,11 +1273,10 @@ function parseDuration(str) {
   if (!str) return 5400;
   const hm = str.match(/(\d+)h\s*(\d+)m/);
   if (hm) return parseInt(hm[1]) * 3600 + parseInt(hm[2]) * 60;
-  const m = str.match(/(\d+)m/); if (m) return parseInt(m[1]) * 60;
+  const m  = str.match(/(\d+)m/); if (m) return parseInt(m[1]) * 60;
   const ep = str.match(/(\d+)\s*épisode/); if (ep) return parseInt(ep[1]) * 2400;
   return 5400;
 }
-
 function formatTime(sec) {
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
   if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
@@ -945,7 +1288,7 @@ function shareContent() {
   const item = CATALOG.find(c => c.id === currentModalId);
   if (!item) return;
   if (navigator.share) navigator.share({ title: item.title, text: item.description, url: location.href });
-  else navigator.clipboard.writeText(location.href).then(() => showToast('Lien copié ✓'));
+  else navigator.clipboard.writeText(location.href).then(() => showToast('Lien copié'));
 }
 
 // ── TOAST ─────────────────────────────────────────────────────────────────────
@@ -956,10 +1299,10 @@ function showToast(msg, isError = false) {
   t.className = 'toast' + (isError ? ' toast-error' : '');
   t.classList.remove('hidden');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.add('hidden'), 2600);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 2800);
 }
 
-// Keyboard shortcuts
+// ── KEYBOARD ──────────────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     if (!document.getElementById('video-modal').classList.contains('modal-hidden')) closeModal();

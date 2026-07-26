@@ -60,6 +60,7 @@ body {
 }
 
 .auth-icon { width: 48px; height: 48px; filter: drop-shadow(0 0 12px rgba(0,212,255,0.6)); }
+.auth-icon-img { width: 48px; height: 48px; object-fit: contain; border-radius: 10px; filter: drop-shadow(0 0 12px rgba(0,212,255,0.6)); }
 
 .auth-wordmark {
   font-family: 'Rajdhani', sans-serif;

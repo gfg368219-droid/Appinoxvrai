@@ -14,47 +14,7 @@
 <div id="intro-screen">
   <canvas id="streak-canvas"></canvas>
   <div id="intro-logo">
-    <svg id="logo-icon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="iLF" x1="70%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#bbf0ff"/>
-          <stop offset="25%" stop-color="#22ccff"/>
-          <stop offset="65%" stop-color="#0088ee"/>
-          <stop offset="100%" stop-color="#0050aa"/>
-        </linearGradient>
-        <linearGradient id="iRF" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#1c0065"/>
-          <stop offset="100%" stop-color="#090030"/>
-        </linearGradient>
-        <linearGradient id="iAR" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#7700cc"/>
-          <stop offset="50%" stop-color="#cc00ff"/>
-          <stop offset="100%" stop-color="#ff0066"/>
-        </linearGradient>
-        <filter id="iGL"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        <filter id="iGA"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      </defs>
-      <!-- Inner floor of cutout (bottom triangle inside A) -->
-      <polygon points="60,52 34,112 86,112" fill="#0a4580"/>
-      <!-- Right face — medium-dark indigo -->
-      <polygon points="60,10 112,112 86,112 60,52" fill="url(#iRF)"/>
-      <!-- Left bright face — cyan gradient -->
-      <polygon points="60,10 8,112 34,112 60,52" fill="url(#iLF)" filter="url(#iGL)"/>
-      <!-- Left face inner facet (secondary highlight) -->
-      <polygon points="60,10 60,50 34,112 8,112" fill="#33aaff" opacity="0.12"/>
-      <!-- Ridge line on inner edge -->
-      <line x1="60" y1="10" x2="34" y2="112" stroke="rgba(180,240,255,0.38)" stroke-width="1.2"/>
-      <!-- Crossbar -->
-      <polygon points="26,80 94,80 98,66 22,66" fill="#0a4580" opacity="0.95"/>
-      <!-- Arrow shaft — very thick, strong glow -->
-      <line x1="40" y1="110" x2="97" y2="9" stroke="url(#iAR)" stroke-width="13" stroke-linecap="round" filter="url(#iGA)"/>
-      <!-- Arrowhead front face (bright pink/magenta) -->
-      <polygon points="97,9 70,24 82,48" fill="#ff0066" filter="url(#iGA)"/>
-      <!-- Arrowhead side face (purple — 3D kite effect) -->
-      <polygon points="97,9 62,28 70,24" fill="#cc00ff" opacity="0.88"/>
-      <!-- Arrow tip highlight -->
-      <polygon points="97,9 72,20 80,34" fill="#ff88cc" opacity="0.5"/>
-    </svg>
+    <img src="/logo.png" id="logo-img-intro" alt="APPINOX"/>
     <div id="intro-wordmark">
       <span>A</span><span>P</span><span>P</span><span>I</span><span>N</span><span>O</span><span>X</span>
     </div>
@@ -69,36 +29,7 @@
   <nav id="navbar">
     <div class="nav-left">
       <div class="nav-logo">
-        <svg viewBox="0 0 70 70" xmlns="http://www.w3.org/2000/svg" class="nav-icon">
-          <defs>
-            <linearGradient id="nLF" x1="70%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stop-color="#bbf0ff"/>
-              <stop offset="25%" stop-color="#22ccff"/>
-              <stop offset="65%" stop-color="#0088ee"/>
-              <stop offset="100%" stop-color="#0050aa"/>
-            </linearGradient>
-            <linearGradient id="nRF" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#1c0065"/><stop offset="100%" stop-color="#090030"/>
-            </linearGradient>
-            <linearGradient id="nAR" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#7700cc"/>
-              <stop offset="50%" stop-color="#cc00ff"/>
-              <stop offset="100%" stop-color="#ff0066"/>
-            </linearGradient>
-            <filter id="nGL"><feGaussianBlur stdDeviation="1.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-            <filter id="nGA"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-          </defs>
-          <polygon points="35,30 20,65 50,65" fill="#0a4580"/>
-          <polygon points="35,6 65,65 50,65 35,30" fill="url(#nRF)"/>
-          <polygon points="35,6 5,65 20,65 35,30" fill="url(#nLF)" filter="url(#nGL)"/>
-          <polygon points="35,6 35,29 20,65 5,65" fill="#33aaff" opacity="0.11"/>
-          <line x1="35" y1="6" x2="20" y2="65" stroke="rgba(180,240,255,0.35)" stroke-width="0.7"/>
-          <polygon points="15,47 55,47 57,38 13,38" fill="#0a4580" opacity="0.92"/>
-          <line x1="23" y1="64" x2="57" y2="5" stroke="url(#nAR)" stroke-width="7.5" stroke-linecap="round" filter="url(#nGA)"/>
-          <polygon points="57,5 41,14 48,28" fill="#ff0066" filter="url(#nGA)"/>
-          <polygon points="57,5 36,16 41,14" fill="#cc00ff" opacity="0.88"/>
-          <polygon points="57,5 42,11 47,20" fill="#ff88cc" opacity="0.5"/>
-        </svg>
+        <img src="/logo.png" class="nav-logo-img" alt="A"/>
         <span class="nav-wordmark">APPINOX</span>
       </div>
       <ul class="nav-links">
@@ -111,13 +42,13 @@
     <div class="nav-right">
       <div class="nav-search-wrap" id="search-wrap">
         <button class="nav-icon-btn" onclick="toggleSearch()" title="Rechercher">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </button>
         <div class="search-box" id="search-box">
           <input type="text" id="search-input" placeholder="Titre, genre, audio…" oninput="doSearch(this.value)" autocomplete="off"/>
-          <button onclick="toggleSearch()" class="search-close">✕</button>
+          <button onclick="toggleSearch()" class="search-close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
       </div>
       <div class="avatar-wrap" id="avatar-wrap">
@@ -160,7 +91,7 @@
     </div>
     <div class="cards-track" id="search-results-track" style="padding:20px 60px 30px;flex-wrap:wrap;overflow:visible;"></div>
     <div id="search-empty" class="empty-state hidden">
-      <div class="empty-icon">🔍</div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-svg"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <p>Aucun résultat pour cette recherche.</p>
     </div>
   </div>
@@ -169,18 +100,20 @@
   <div id="section-home">
     <section id="hero">
       <div class="hero-bg">
+        <div class="hero-poster-bg" id="hero-poster-bg"></div>
         <canvas id="hero-canvas"></canvas>
         <div class="hero-overlay"></div>
       </div>
-      <div class="hero-content" id="hero-content-area">
-        <!-- filled by JS -->
-      </div>
+      <div class="hero-content" id="hero-content-area"><!-- filled by JS --></div>
     </section>
 
     <!-- CONTINUE WATCHING -->
     <div id="row-resume" style="display:none;padding:0 60px 0;margin-top:24px;">
       <div class="row-header">
-        <h2 class="row-title"><span class="title-accent" style="color:#00d4ff">▶</span> Reprendre</h2>
+        <h2 class="row-title">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="row-icon" style="color:#00d4ff"><polygon points="5,3 19,12 5,21"/></svg>
+          Reprendre
+        </h2>
       </div>
       <div id="resume-card-wrap"></div>
     </div>
@@ -188,23 +121,29 @@
     <main id="content">
       <section class="content-row" id="row-trending">
         <div class="row-header">
-          <h2 class="row-title"><span class="title-accent">▶</span> Tendances</h2>
+          <h2 class="row-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="row-icon" style="color:#ff2d78"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            Tendances
+          </h2>
         </div>
         <div class="cards-wrapper">
-          <button class="scroll-btn scroll-left" onclick="scrollRow('trending-track',-1)">‹</button>
+          <button class="scroll-btn scroll-left" onclick="scrollRow('trending-track',-1)">&#8249;</button>
           <div class="cards-track" id="trending-track"></div>
-          <button class="scroll-btn scroll-right" onclick="scrollRow('trending-track',1)">›</button>
+          <button class="scroll-btn scroll-right" onclick="scrollRow('trending-track',1)">&#8250;</button>
         </div>
       </section>
 
       <section class="content-row" id="row-recent">
         <div class="row-header">
-          <h2 class="row-title"><span class="title-accent" style="color:#bf40ff">◈</span> Ajoutés récemment</h2>
+          <h2 class="row-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="row-icon" style="color:#bf40ff"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Ajoutés récemment
+          </h2>
         </div>
         <div class="cards-wrapper">
-          <button class="scroll-btn scroll-left" onclick="scrollRow('recent-track',-1)">‹</button>
+          <button class="scroll-btn scroll-left" onclick="scrollRow('recent-track',-1)">&#8249;</button>
           <div class="cards-track" id="recent-track"></div>
-          <button class="scroll-btn scroll-right" onclick="scrollRow('recent-track',1)">›</button>
+          <button class="scroll-btn scroll-right" onclick="scrollRow('recent-track',1)">&#8250;</button>
         </div>
       </section>
     </main>
@@ -236,7 +175,7 @@
     </div>
     <div class="section-grid" id="mylist-grid"></div>
     <div id="mylist-empty" class="empty-state hidden">
-      <div class="empty-icon">📋</div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-svg"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="12" y2="16"/></svg>
       <p>Votre liste est vide. Ajoutez des contenus pour les retrouver ici.</p>
     </div>
   </div>
@@ -251,25 +190,46 @@
     <!-- Stats -->
     <div class="admin-stats-grid">
       <div class="admin-stat-card">
-        <div class="stat-icon">👥</div>
+        <div class="stat-icon-svg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
         <div class="stat-value" id="stat-users">—</div>
         <div class="stat-label">Utilisateurs</div>
       </div>
       <div class="admin-stat-card">
-        <div class="stat-icon">🎬</div>
+        <div class="stat-icon-svg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
+        </div>
         <div class="stat-value" id="stat-content">0</div>
         <div class="stat-label">Contenus</div>
       </div>
       <div class="admin-stat-card">
-        <div class="stat-icon">📽</div>
+        <div class="stat-icon-svg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        </div>
         <div class="stat-value" id="stat-films">0</div>
         <div class="stat-label">Films</div>
       </div>
       <div class="admin-stat-card">
-        <div class="stat-icon">📺</div>
+        <div class="stat-icon-svg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>
+        </div>
         <div class="stat-value" id="stat-series">0</div>
         <div class="stat-label">Séries</div>
       </div>
+    </div>
+
+    <!-- TMDB Search -->
+    <div class="admin-card" style="margin-bottom:20px">
+      <div class="admin-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Rechercher un film / série (TMDB)
+      </div>
+      <div class="tmdb-search-row">
+        <input type="text" id="tmdb-input" class="form-input" placeholder="ex : Inception, Breaking Bad…" oninput="debounceTmdb(this.value)"/>
+        <div class="tmdb-status" id="tmdb-status"></div>
+      </div>
+      <div id="tmdb-results" class="tmdb-results"></div>
     </div>
 
     <!-- Add content form -->
@@ -280,16 +240,20 @@
       </div>
       <div id="form-error" class="form-error hidden"></div>
       <form class="add-form" id="add-content-form" onsubmit="submitAddContent(event)">
+
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Titre <span class="required">*</span></label>
             <input type="text" id="f-title" class="form-input" placeholder="Titre du contenu" required/>
           </div>
           <div class="form-group">
-            <label class="form-label">Genre <span class="required">*</span></label>
+            <label class="form-label">Genre <span class="required">*</span>
+              <button type="button" class="tmdb-fill-btn" id="fill-genre-btn" style="display:none" onclick="fillFromTmdb('genre')">+ TMDB</button>
+            </label>
             <input type="text" id="f-genre" class="form-input" placeholder="ex : Action, Comédie, Sci-Fi…" required/>
           </div>
         </div>
+
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Type <span class="required">*</span></label>
@@ -302,18 +266,19 @@
             </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Durée</label>
+            <label class="form-label">Durée
+              <button type="button" class="tmdb-fill-btn" id="fill-duration-btn" style="display:none" onclick="fillFromTmdb('duration')">+ TMDB</button>
+            </label>
             <input type="text" id="f-duration" class="form-input" placeholder="ex : 1h 52m"/>
           </div>
           <div class="form-group">
-            <label class="form-label">Année</label>
+            <label class="form-label">Année
+              <button type="button" class="tmdb-fill-btn" id="fill-year-btn" style="display:none" onclick="fillFromTmdb('year')">+ TMDB</button>
+            </label>
             <input type="number" id="f-year" class="form-input" placeholder="2026" min="1900" max="2099"/>
           </div>
-          <div class="form-group">
-            <label class="form-label">Note /10</label>
-            <input type="number" id="f-rating" class="form-input" placeholder="ex : 8.5" min="0" max="10" step="0.1"/>
-          </div>
         </div>
+
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Audio <span class="required">*</span></label>
@@ -340,34 +305,94 @@
             </select>
           </div>
         </div>
+
         <div class="form-group full-width">
-          <label class="form-label">Description</label>
+          <label class="form-label">Description
+            <button type="button" class="tmdb-fill-btn" id="fill-desc-btn" style="display:none" onclick="fillFromTmdb('description')">+ TMDB</button>
+          </label>
           <textarea id="f-desc" class="form-textarea" placeholder="Synopsis, description du contenu…"></textarea>
         </div>
+
+        <!-- Trailer URL -->
         <div class="form-group full-width">
-          <label class="form-label">Fichier vidéo <span style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0">(optionnel)</span></label>
+          <label class="form-label">Lien bande-annonce YouTube
+            <button type="button" class="tmdb-fill-btn" id="fill-trailer-btn" style="display:none" onclick="fillFromTmdb('trailer')">+ TMDB</button>
+          </label>
+          <input type="url" id="f-trailer" class="form-input" placeholder="https://www.youtube.com/watch?v=…"/>
+        </div>
+
+        <!-- Poster image upload -->
+        <div class="form-group full-width">
+          <label class="form-label">Image affiche (poster)
+            <button type="button" class="tmdb-fill-btn" id="fill-poster-btn" style="display:none" onclick="fillFromTmdb('poster')">+ TMDB</button>
+          </label>
+          <div class="poster-upload-wrap">
+            <label class="video-upload-label" id="poster-upload-label">
+              <input type="file" id="f-poster" accept="image/*" style="display:none" onchange="onPosterChosen(this)"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:20px;height:20px;color:var(--cyan)"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              <span id="poster-file-label-text">Choisir une image (jpg, png, webp…)</span>
+            </label>
+            <div id="poster-preview-wrap" style="display:none">
+              <img id="poster-preview-img" src="" alt="Aperçu" class="poster-preview"/>
+              <button type="button" class="poster-remove-btn" onclick="removePoster()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+          <input type="hidden" id="f-poster-url" name="posterUrl"/>
+          <div id="poster-upload-progress" style="display:none;margin-top:8px">
+            <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
+              <div id="poster-progress-bar" style="height:100%;width:0%;background:var(--grad);border-radius:3px;transition:width 0.3s"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Video upload -->
+        <div class="form-group full-width">
+          <label class="form-label">Fichier vidéo <span style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0">(upload en arrière-plan)</span></label>
           <label class="video-upload-label" id="video-upload-label">
             <input type="file" id="f-video" accept="video/*" style="display:none" onchange="onVideoFileChosen(this)"/>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:22px;height:22px;color:var(--purple)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             <span id="video-file-label-text">Choisir un fichier vidéo (mp4, mkv, avi…)</span>
           </label>
+          <input type="hidden" id="f-video-url" name="videoUrl"/>
           <div id="video-upload-progress" style="display:none;margin-top:8px">
             <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
               <div id="video-progress-bar" style="height:100%;width:0%;background:var(--grad);border-radius:3px;transition:width 0.3s"></div>
             </div>
             <div id="video-progress-text" style="font-size:11px;color:var(--text-dim);margin-top:5px">Upload en cours…</div>
           </div>
+          <!-- Persistent global upload status (shown even if user navigates away) -->
+          <div id="bg-upload-banner" class="bg-upload-banner" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--cyan)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span id="bg-upload-text">Upload en cours…</span>
+            <div class="bg-upload-bar-wrap"><div id="bg-upload-bar" style="height:100%;width:0%;background:var(--grad);border-radius:3px;"></div></div>
+          </div>
         </div>
+
+        <!-- Actors -->
+        <div class="form-group full-width">
+          <label class="form-label">Acteurs
+            <button type="button" class="tmdb-fill-btn" id="fill-actors-btn" style="display:none" onclick="fillFromTmdb('actors')">+ TMDB</button>
+          </label>
+          <div id="actors-list" class="actors-list"></div>
+          <button type="button" class="btn-add-actor" onclick="addActorRow()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Ajouter un acteur
+          </button>
+        </div>
+
         <div class="form-group">
           <label class="form-label">Afficher dans</label>
           <div class="checkbox-row">
             <label class="form-check">
               <input type="checkbox" name="rows" value="trending"/>
               <span class="check-custom"></span>
-              Tendances
+              Tendances (manuel)
             </label>
           </div>
         </div>
+
         <div class="form-actions">
           <button type="button" class="btn-reset" onclick="resetForm()">Réinitialiser</button>
           <button type="submit" class="btn-add-content" id="form-submit-btn">
@@ -404,31 +429,7 @@
   <!-- FOOTER -->
   <footer id="footer">
     <div class="footer-logo">
-      <svg viewBox="0 0 70 70" xmlns="http://www.w3.org/2000/svg" class="footer-icon">
-        <defs>
-          <linearGradient id="fLF" x1="70%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#bbf0ff"/>
-            <stop offset="25%" stop-color="#22ccff"/>
-            <stop offset="65%" stop-color="#0088ee"/>
-            <stop offset="100%" stop-color="#0050aa"/>
-          </linearGradient>
-          <linearGradient id="fRF" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#1c0065"/><stop offset="100%" stop-color="#090030"/>
-          </linearGradient>
-          <linearGradient id="fAR" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#7700cc"/>
-            <stop offset="50%" stop-color="#cc00ff"/>
-            <stop offset="100%" stop-color="#ff0066"/>
-          </linearGradient>
-        </defs>
-        <polygon points="35,30 20,65 50,65" fill="#0a4580" opacity="0.6"/>
-        <polygon points="35,6 65,65 50,65 35,30" fill="url(#fRF)" opacity="0.6"/>
-        <polygon points="35,6 5,65 20,65 35,30" fill="url(#fLF)" opacity="0.65"/>
-        <polygon points="15,47 55,47 57,38 13,38" fill="#0a4580" opacity="0.5"/>
-        <line x1="23" y1="64" x2="57" y2="5" stroke="url(#fAR)" stroke-width="6" stroke-linecap="round" opacity="0.72"/>
-        <polygon points="57,5 41,14 48,28" fill="#ff0066" opacity="0.72"/>
-        <polygon points="57,5 36,16 41,14" fill="#cc00ff" opacity="0.65"/>
-      </svg>
+      <img src="/logo.png" class="footer-logo-img" alt="A"/>
       <span>APPINOX</span>
     </div>
     <div class="footer-links">
@@ -441,14 +442,21 @@
   </footer>
 </div>
 
-<!-- VIDEO MODAL -->
+<!-- ── MODAL ──────────────────────────────────────────────────────────────── -->
 <div id="video-modal" class="modal-hidden">
   <div class="modal-backdrop" onclick="closeModal()"></div>
   <div class="modal-container">
-    <button class="modal-close" onclick="closeModal()">✕</button>
-    <div class="modal-player">
-      <!-- Real HTML5 video player (shown when video file is available) -->
+    <button class="modal-close" onclick="closeModal()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+    <!-- Player area -->
+    <div class="modal-player" id="modal-player-area">
+      <!-- YouTube trailer iframe -->
+      <iframe id="player-yt" style="display:none;position:absolute;inset:0;width:100%;height:100%;border:none;z-index:2" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+      <!-- Real HTML5 video -->
       <video id="player-video" preload="metadata" controlsList="nodownload" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1"></video>
+      <!-- Canvas animation -->
       <canvas id="player-canvas" style="position:absolute;inset:0;width:100%;height:100%;"></canvas>
       <div class="player-overlay" id="player-overlay">
         <div class="player-controls">
@@ -481,25 +489,59 @@
             <span class="player-title" id="modal-playing-title">—</span>
             <div class="right-controls">
               <button class="ctrl-btn" onclick="toggleFullscreen()" title="Plein écran">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-                </svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
               </button>
             </div>
           </div>
         </div>
       </div>
     </div>
-    <div class="modal-info">
+
+    <!-- Tab bar -->
+    <div class="modal-tabs" id="modal-tabs">
+      <button class="modal-tab active" id="tab-trailer" onclick="switchModalTab('trailer')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        Bande-annonce
+      </button>
+      <button class="modal-tab" id="tab-watch" onclick="switchModalTab('watch')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+        Regarder
+      </button>
+      <button class="modal-tab" id="tab-info" onclick="switchModalTab('info')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        Info
+      </button>
+    </div>
+
+    <!-- Info panel -->
+    <div class="modal-info" id="modal-info-panel">
       <div class="modal-meta">
         <h2 id="modal-title-text">—</h2>
         <div class="modal-tags" id="modal-tags"></div>
-        <p id="modal-desc-text"></p>
+        <p id="modal-desc-text" class="modal-desc"></p>
+
+        <!-- Actors row -->
+        <div id="modal-actors-wrap" class="modal-actors-wrap" style="display:none">
+          <div class="modal-actors-title">Acteurs</div>
+          <div id="modal-actors-list" class="modal-actors-list"></div>
+        </div>
       </div>
       <div class="modal-actions">
-        <button class="btn-play-sm" onclick="togglePlay()">
+        <!-- Star rating -->
+        <div class="star-rating-block">
+          <div class="star-rating-label">Votre note</div>
+          <div class="star-row" id="modal-stars">
+            <button class="star" data-v="1" onclick="rateItem(1)">&#9733;</button>
+            <button class="star" data-v="2" onclick="rateItem(2)">&#9733;</button>
+            <button class="star" data-v="3" onclick="rateItem(3)">&#9733;</button>
+            <button class="star" data-v="4" onclick="rateItem(4)">&#9733;</button>
+            <button class="star" data-v="5" onclick="rateItem(5)">&#9733;</button>
+          </div>
+          <div class="community-rating" id="community-rating"></div>
+        </div>
+        <button class="btn-play-sm" onclick="switchModalTab('watch')">
           <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-          Lecture
+          Regarder
         </button>
         <button class="btn-list" id="modal-watchlist-btn" onclick="toggleWatchlistModal()">+ Ma liste</button>
         <button class="btn-share" onclick="shareContent()">Partager</button>
@@ -510,6 +552,14 @@
 
 <!-- TOAST -->
 <div id="toast" class="toast hidden"></div>
+
+<!-- Global upload status (persists across section navigation) -->
+<div id="global-upload-indicator" class="global-upload-indicator" style="display:none">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+  <span id="global-upload-text">Upload…</span>
+  <div class="global-upload-bar-wrap"><div id="global-upload-bar"></div></div>
+  <span id="global-upload-pct">0%</span>
+</div>
 
 <script src="app.js"></script>
 </body>
