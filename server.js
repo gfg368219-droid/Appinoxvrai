@@ -270,6 +270,7 @@ app.post('/api/watchlist/:id', requireAuth, (req, res) => {
   const users = loadUsers();
   const user = users.find(u => u.id === req.session.userId);
   if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  if (!Array.isArray(user.watchlist)) user.watchlist = [];
   const id = req.params.id;
   const idx = user.watchlist.indexOf(id);
   if (idx === -1) user.watchlist.push(id);
@@ -296,67 +297,67 @@ app.post('/api/admin/upload-image', requireAuth, requireAdmin, uploadImage.singl
   res.json({ success: true, filename: req.file.filename, imageUrl: '/images/' + req.file.filename });
 });
 
-// ── API: Admin — TMDB Search ──────────────────────────────────────────────────
-app.get('/api/admin/tmdb-search', requireAuth, requireAdmin, async (req, res) => {
+// ── API: Admin — Auto Search (iTunes, aucune clé requise) ────────────────────
+app.get('/api/admin/auto-search', requireAuth, requireAdmin, async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json({ results: [] });
-
-  const apiKey = process.env.TMDB_KEY;
-  if (!apiKey) return res.status(503).json({ error: 'Clé TMDB non configurée (TMDB_KEY)' });
-
   try {
-    const url = `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(q)}&language=fr-FR&include_adult=false`;
-    const r = await fetch(url, {
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    });
+    const url = `https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=all&entity=movie,tvSeason&limit=16&country=fr`;
+    const r = await fetch(url, { headers: { 'User-Agent': 'APPINOX/1.0' } });
     const data = await r.json();
-    const results = (data.results || []).filter(x => x.media_type === 'movie' || x.media_type === 'tv').slice(0, 8).map(x => ({
-      tmdbId:    x.id,
-      title:     x.title || x.name,
-      type:      x.media_type === 'tv' ? 'serie' : 'film',
-      year:      (x.release_date || x.first_air_date || '').slice(0, 4),
-      overview:  x.overview,
-      poster:    x.poster_path ? `https://image.tmdb.org/t/p/w500${x.poster_path}` : null,
-      backdrop:  x.backdrop_path ? `https://image.tmdb.org/t/p/w780${x.backdrop_path}` : null,
-      voteAvg:   x.vote_average ? Math.round(x.vote_average / 2 * 10) / 10 : null,
-    }));
+    const seen = new Set();
+    const results = (data.results || [])
+      .filter(x => x.kind === 'feature-movie' || x.collectionType === 'TV Season')
+      .map(x => {
+        const isTV = x.collectionType === 'TV Season';
+        let title = isTV
+          ? (x.artistName || (x.collectionName || '').replace(/,\s*(saison|season)\s*\d+/i, ''))
+          : (x.trackName || '');
+        title = title.trim();
+        const key = title.toLowerCase() + isTV;
+        if (!title || seen.has(key)) return null;
+        seen.add(key);
+        const poster = (x.artworkUrl100 || '').replace('100x100bb', '600x600bb');
+        const year   = (x.releaseDate || '').slice(0, 4);
+        const durationMs = x.trackTimeMillis || null;
+        return {
+          itunesId: isTV ? String(x.collectionId) : String(x.trackId),
+          title,
+          type: isTV ? 'serie' : 'film',
+          year,
+          overview: x.longDescription || x.description || '',
+          poster:   poster || null,
+          genre:    x.primaryGenreName || '',
+          durationMs,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 8);
     res.json({ results });
   } catch (err) {
-    res.status(500).json({ error: 'Erreur TMDB: ' + err.message });
+    res.status(500).json({ error: 'Erreur de recherche: ' + err.message });
   }
 });
 
-// ── API: Admin — TMDB Detail (cast, genres, trailer) ─────────────────────────
-app.get('/api/admin/tmdb-detail/:type/:id', requireAuth, requireAdmin, async (req, res) => {
-  const apiKey = process.env.TMDB_KEY;
-  if (!apiKey) return res.status(503).json({ error: 'Clé TMDB non configurée' });
-
-  const { type, id } = req.params;
-  const endpoint = type === 'tv' ? 'tv' : 'movie';
-
+// ── API: Admin — Auto Detail (iTunes lookup) ──────────────────────────────────
+app.get('/api/admin/auto-detail/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const [detailRes, creditsRes, videosRes] = await Promise.all([
-      fetch(`https://api.themoviedb.org/3/${endpoint}/${id}?language=fr-FR`, { headers: { Authorization: `Bearer ${apiKey}` } }),
-      fetch(`https://api.themoviedb.org/3/${endpoint}/${id}/credits?language=fr-FR`, { headers: { Authorization: `Bearer ${apiKey}` } }),
-      fetch(`https://api.themoviedb.org/3/${endpoint}/${id}/videos?language=fr-FR`, { headers: { Authorization: `Bearer ${apiKey}` } }),
-    ]);
-    const detail  = await detailRes.json();
-    const credits = await creditsRes.json();
-    const videos  = await videosRes.json();
-
-    const genres  = (detail.genres || []).map(g => g.name).join(', ');
-    const runtime = detail.runtime ? `${Math.floor(detail.runtime/60)}h ${detail.runtime%60}m` : (detail.episode_run_time?.[0] ? `${detail.episode_run_time[0]}m` : null);
-    const actors  = (credits.cast || []).slice(0, 8).map(a => ({
-      name:  a.name,
-      photo: a.profile_path ? `https://image.tmdb.org/t/p/w185${a.profile_path}` : null,
-    }));
-    const trailer = (videos.results || []).find(v => v.type === 'Trailer' && v.site === 'YouTube')
-                 || (videos.results || []).find(v => v.site === 'YouTube');
-    const trailerUrl = trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : null;
-
-    res.json({ genres, runtime, actors, trailerUrl });
+    const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(req.params.id)}`, {
+      headers: { 'User-Agent': 'APPINOX/1.0' },
+    });
+    const data = await r.json();
+    const item = (data.results || [])[0];
+    if (!item) return res.json({});
+    const genre = item.primaryGenreName || '';
+    const durationMs = item.trackTimeMillis || null;
+    let runtime = null;
+    if (durationMs) {
+      const mins = Math.round(durationMs / 60000);
+      runtime = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}min` : `${mins}min`;
+    }
+    res.json({ genre, runtime });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Erreur détail' });
   }
 });
 

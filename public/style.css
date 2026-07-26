@@ -34,10 +34,10 @@ button{cursor:pointer;border:none;background:none;}
 }
 @keyframes logoReveal{to{opacity:1;transform:scale(1);}}
 #logo-img-intro{
-  width:130px;height:130px;object-fit:contain;
+  width:100px;height:100px;object-fit:contain;
   filter:drop-shadow(0 0 35px rgba(0,220,255,0.95)) drop-shadow(0 0 80px rgba(191,64,255,0.5));
   animation:logoPulse 2.2s ease-in-out 1.4s infinite alternate;
-  border-radius:18px;
+  border-radius:16px;
 }
 @keyframes logoPulse{
   from{filter:drop-shadow(0 0 35px rgba(0,220,255,0.95)) drop-shadow(0 0 80px rgba(191,64,255,0.5));}
@@ -79,7 +79,7 @@ button{cursor:pointer;border:none;background:none;}
 }
 .nav-left{display:flex;align-items:center;gap:36px;}
 .nav-logo{display:flex;align-items:center;gap:10px;}
-.nav-logo-img{width:32px;height:32px;object-fit:contain;border-radius:6px;filter:drop-shadow(0 0 8px rgba(0,212,255,0.6));}
+.nav-logo-img{width:28px;height:28px;object-fit:contain;border-radius:5px;filter:drop-shadow(0 0 8px rgba(0,212,255,0.6));}
 .nav-wordmark{
   font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;letter-spacing:3px;
   background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;

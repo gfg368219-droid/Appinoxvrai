@@ -473,11 +473,11 @@ function renderAdminContentList() {
   </table>`;
 }
 
-// ── TMDB SEARCH ───────────────────────────────────────────────────────────────
+// ── AUTO-FILL SEARCH (iTunes, sans clé API) ───────────────────────────────────
 let tmdbTimeout = null;
 function debounceTmdb(val) {
   clearTimeout(tmdbTimeout);
-  const status = document.getElementById('tmdb-status');
+  const status  = document.getElementById('tmdb-status');
   const results = document.getElementById('tmdb-results');
   if (!val.trim()) { results.innerHTML = ''; status.textContent = ''; return; }
   status.textContent = 'Recherche…';
@@ -488,7 +488,7 @@ async function doTmdbSearch(q) {
   const status  = document.getElementById('tmdb-status');
   const results = document.getElementById('tmdb-results');
   try {
-    const res  = await fetch(`/api/admin/tmdb-search?q=${encodeURIComponent(q)}`);
+    const res  = await fetch(`/api/admin/auto-search?q=${encodeURIComponent(q)}`);
     const data = await res.json();
     status.textContent = '';
     if (data.error) { status.textContent = data.error; results.innerHTML = ''; return; }
@@ -498,11 +498,11 @@ async function doTmdbSearch(q) {
         ${r.poster ? `<img src="${r.poster}" class="tmdb-result-poster" alt="">` : `<div class="tmdb-result-poster tmdb-no-poster"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:20px;height:20px;color:var(--text-dim)"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></div>`}
         <div class="tmdb-result-info">
           <div class="tmdb-result-title">${r.title}</div>
-          <div class="tmdb-result-meta">${r.type === 'serie' ? 'Série' : 'Film'} · ${r.year || '?'}</div>
+          <div class="tmdb-result-meta">${r.type === 'serie' ? 'Série' : 'Film'} · ${r.year || '?'} ${r.genre ? '· ' + r.genre : ''}</div>
         </div>
       </div>`).join('');
   } catch(e) {
-    status.textContent = 'Erreur de connexion TMDB';
+    status.textContent = 'Erreur de recherche';
     results.innerHTML = '';
   }
 }
@@ -510,28 +510,52 @@ async function doTmdbSearch(q) {
 async function selectTmdb(result) {
   tmdbSelected = result;
   tmdbDetail   = null;
-  // Pre-fill basic fields
-  document.getElementById('f-title').value = result.title || '';
-  if (result.year) document.getElementById('f-year').value = result.year;
-  if (result.overview) document.getElementById('f-desc').value = result.overview;
-  if (result.type) document.getElementById('f-type').value = result.type;
 
-  // Show TMDB fill buttons
+  // Pré-remplir les champs de base immédiatement
+  document.getElementById('f-title').value = result.title || '';
+  if (result.type)     document.getElementById('f-type').value = result.type;
+  if (result.year)     document.getElementById('f-year').value = result.year;
+  if (result.overview) document.getElementById('f-desc').value = result.overview;
+  if (result.genre)    document.getElementById('f-genre').value = result.genre;
+
+  // Durée depuis iTunes (ms → Xh Ymin)
+  if (result.durationMs) {
+    const mins = Math.round(result.durationMs / 60000);
+    document.getElementById('f-duration').value = mins >= 60
+      ? `${Math.floor(mins/60)}h ${mins%60}min`
+      : `${mins}min`;
+  }
+
+  // Affiche les boutons "+ Auto"
   ['genre','duration','year','desc','trailer','poster','actors'].forEach(k => {
     const btn = document.getElementById(`fill-${k}-btn`);
     if (btn) btn.style.display = 'inline-flex';
   });
 
-  // Show selected state
+  // Highlight sélectionné
   document.querySelectorAll('.tmdb-result-card').forEach(el => el.classList.remove('selected'));
-  showToast(`"${result.title}" sélectionné — cliquez sur + TMDB pour remplir chaque champ`);
+  event?.currentTarget?.classList?.add('selected');
 
-  // Fetch detail (genres, runtime, actors, trailer)
-  const endpoint = result.type === 'serie' ? 'tv' : 'movie';
+  // Affiche l'affiche auto si disponible
+  if (result.poster) {
+    document.getElementById('f-poster-url').value = result.poster;
+    const prev = document.getElementById('poster-preview-img');
+    if (prev) { prev.src = result.poster; document.getElementById('poster-preview-wrap').style.display='flex'; }
+    document.getElementById('poster-upload-label').style.display='none';
+  }
+
+  showToast(`"${result.title}" sélectionné — champs pré-remplis`);
+
+  // Chargement des détails supplémentaires (durée précise si pas encore disponible)
   try {
-    const res = await fetch(`/api/admin/tmdb-detail/${endpoint}/${result.tmdbId}`);
+    const res = await fetch(`/api/admin/auto-detail/${result.itunesId}`);
     tmdbDetail = await res.json();
-    showToast('Infos TMDB chargées — utilisez les boutons + TMDB');
+    if (tmdbDetail.runtime && !result.durationMs) {
+      document.getElementById('f-duration').value = tmdbDetail.runtime;
+    }
+    if (tmdbDetail.genre && !result.genre) {
+      document.getElementById('f-genre').value = tmdbDetail.genre;
+    }
   } catch {}
 }
 
@@ -539,10 +563,15 @@ function fillFromTmdb(field) {
   if (!tmdbSelected) return;
   switch(field) {
     case 'genre':
-      if (tmdbDetail?.genres) document.getElementById('f-genre').value = tmdbDetail.genres;
+      const g = tmdbDetail?.genre || tmdbSelected.genre;
+      if (g) document.getElementById('f-genre').value = g;
       break;
     case 'duration':
       if (tmdbDetail?.runtime) document.getElementById('f-duration').value = tmdbDetail.runtime;
+      else if (tmdbSelected.durationMs) {
+        const mins = Math.round(tmdbSelected.durationMs / 60000);
+        document.getElementById('f-duration').value = mins >= 60 ? `${Math.floor(mins/60)}h ${mins%60}min` : `${mins}min`;
+      }
       break;
     case 'year':
       if (tmdbSelected.year) document.getElementById('f-year').value = tmdbSelected.year;
@@ -551,8 +580,9 @@ function fillFromTmdb(field) {
       if (tmdbSelected.overview) document.getElementById('f-desc').value = tmdbSelected.overview;
       break;
     case 'trailer':
-      if (tmdbDetail?.trailerUrl) document.getElementById('f-trailer').value = tmdbDetail.trailerUrl;
-      break;
+      showToast('Le lien bande-annonce doit être ajouté manuellement (YouTube)', false);
+      document.getElementById('f-trailer').focus();
+      return;
     case 'poster':
       if (tmdbSelected.poster) {
         document.getElementById('f-poster-url').value = tmdbSelected.poster;
@@ -562,13 +592,10 @@ function fillFromTmdb(field) {
       }
       break;
     case 'actors':
-      if (tmdbDetail?.actors?.length) {
-        clearActors();
-        tmdbDetail.actors.forEach(a => addActorRow(a.name, a.photo));
-      }
-      break;
+      showToast('Les acteurs doivent être ajoutés manuellement', false);
+      return;
   }
-  showToast(`Champ rempli depuis TMDB`);
+  showToast('Champ rempli automatiquement');
 }
 
 // ── ACTORS (Admin form) ───────────────────────────────────────────────────────
@@ -754,11 +781,34 @@ async function submitAddContent(e) {
   const type  = document.getElementById('f-type').value;
   const audio = document.getElementById('f-audio').value;
 
-  if (!title || !genre || !type || !audio) {
-    errDiv.textContent = 'Veuillez remplir tous les champs obligatoires.';
+  // Vérification des champs obligatoires avec détail
+  const missing = [];
+  if (!title) missing.push('Titre');
+  if (!genre)  missing.push('Genre');
+  if (!type)   missing.push('Type (Film / Série…)');
+  if (!audio)  missing.push('Langue audio');
+  if (missing.length) {
+    errDiv.innerHTML = `<strong>Champs obligatoires manquants :</strong><br>• ${missing.join('<br>• ')}`;
     errDiv.classList.remove('hidden');
+    errDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
+
+  // Avertissements pour champs recommandés (sans bloquer)
+  const videoUrl2 = document.getElementById('f-video-url').value.trim();
+  const desc2     = document.getElementById('f-desc').value.trim();
+  const poster2   = document.getElementById('f-poster-url').value.trim();
+  const warnings  = [];
+  if (!videoUrl2) warnings.push('Fichier vidéo non ajouté');
+  if (!desc2)     warnings.push('Description vide');
+  if (!poster2)   warnings.push('Affiche (poster) non définie');
+  if (warnings.length && !window._ignoreWarnings) {
+    errDiv.innerHTML = `<strong>Champs recommandés non remplis :</strong><br>• ${warnings.join('<br>• ')}<br><br><button type="button" onclick="window._ignoreWarnings=true;document.getElementById('form-submit-btn').click()" style="background:var(--grad);border:none;color:#fff;padding:7px 18px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">Ajouter quand même</button>`;
+    errDiv.classList.remove('hidden');
+    errDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  window._ignoreWarnings = false;
 
   // Wait if video is still uploading
   if (bgUpload.active) {
@@ -841,6 +891,7 @@ function resetForm() {
   document.getElementById('tmdb-status').textContent = '';
   clearActors();
   tmdbSelected = null; tmdbDetail = null;
+  window._ignoreWarnings = false;
   ['genre','duration','year','desc','trailer','poster','actors'].forEach(k => {
     const btn = document.getElementById(`fill-${k}-btn`);
     if (btn) btn.style.display = 'none';
