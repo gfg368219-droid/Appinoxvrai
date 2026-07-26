@@ -1,660 +1,780 @@
 /* ═══════════════════════════════════════════════════════════
-   APPINOX STREAMING — MAIN APPLICATION SCRIPT
+   APPINOX — APPLICATION SCRIPT
 ═══════════════════════════════════════════════════════════ */
-
 'use strict';
 
-// ─── DATA ────────────────────────────────────────────────────────────────────
+// ── State ─────────────────────────────────────────────────────────────────────
+let CATALOG = [];
+let currentUser = null;
+let watchlist = new Set();
+let currentModalId = null;
+let isPlaying = false;
+let playerRaf = null;
+let progressInterval = null;
+let progressPct = 0;
+let isMuted = false;
 
-const CATALOG = {
-  trending: [
-    { title: 'Neon Horizon',    genre: 'Sci-Fi',    rating: 9.4, color1: '#0a0520', color2: '#1a0540' },
-    { title: 'Void Protocol',   genre: 'Thriller',  rating: 8.9, color1: '#200505', color2: '#400510' },
-    { title: 'Crimson Pulse',   genre: 'Action',    rating: 8.7, color1: '#050a20', color2: '#051a40' },
-    { title: 'Echo Chamber',    genre: 'Drama',     rating: 9.1, color1: '#050a10', color2: '#0a2010' },
-    { title: 'Phantom Grid',    genre: 'Mystery',   rating: 8.5, color1: '#1a0510', color2: '#200515' },
-    { title: 'Dark Frequency',  genre: 'Sci-Fi',    rating: 8.8, color1: '#050520', color2: '#050a3a' },
-    { title: 'Ultraviolet',     genre: 'Action',    rating: 9.0, color1: '#200a05', color2: '#3a1005' },
-    { title: 'Quantum Drift',   genre: 'Sci-Fi',    rating: 8.6, color1: '#0a1020', color2: '#101530' },
-    { title: 'Binary Storm',    genre: 'Thriller',  rating: 8.3, color1: '#10050a', color2: '#200510' },
-    { title: 'Zenith Protocol', genre: 'Drama',     rating: 9.2, color1: '#050a15', color2: '#0a1520' },
-  ],
-  originals: [
-    { title: 'Synthwave City',  genre: 'Original',  rating: 9.6, color1: '#1a0030', color2: '#30005a', original: true },
-    { title: 'Apex Paradox',    genre: 'Original',  rating: 9.3, color1: '#001a30', color2: '#003060', original: true },
-    { title: 'Mirage Protocol', genre: 'Original',  rating: 9.1, color1: '#2a0020', color2: '#450035', original: true },
-    { title: 'Ghost Sequence',  genre: 'Original',  rating: 9.5, color1: '#00201a', color2: '#003530', original: true },
-    { title: 'Fracture Zone',   genre: 'Original',  rating: 8.9, color1: '#200020', color2: '#350035', original: true },
-    { title: 'Last Signal',     genre: 'Original',  rating: 9.0, color1: '#001520', color2: '#002535', original: true },
-    { title: 'Neural Storm',    genre: 'Original',  rating: 9.4, color1: '#150020', color2: '#250035', original: true },
-    { title: 'Arc Reactor',     genre: 'Original',  rating: 8.8, color1: '#001020', color2: '#001a35', original: true },
-  ],
-  continue: [
-    { title: 'Dark Frequency',  genre: 'Sci-Fi',    rating: 8.8, color1: '#050520', color2: '#050a3a', progress: 68 },
-    { title: 'Synthwave City',  genre: 'Original',  rating: 9.6, color1: '#1a0030', color2: '#30005a', progress: 23 },
-    { title: 'Void Protocol',   genre: 'Thriller',  rating: 8.9, color1: '#200505', color2: '#400510', progress: 91 },
-    { title: 'Apex Paradox',    genre: 'Original',  rating: 9.3, color1: '#001a30', color2: '#003060', progress: 45 },
-    { title: 'Echo Chamber',    genre: 'Drama',     rating: 9.1, color1: '#050a10', color2: '#0a2010', progress: 12 },
-    { title: 'Quantum Drift',   genre: 'Sci-Fi',    rating: 8.6, color1: '#0a1020', color2: '#101530', progress: 77 },
-  ],
-  toprated: [
-    { title: 'Neon Horizon',    genre: 'Sci-Fi',    rating: 9.4, color1: '#0a0520', color2: '#1a0540' },
-    { title: 'Synthwave City',  genre: 'Original',  rating: 9.6, color1: '#1a0030', color2: '#30005a' },
-    { title: 'Ghost Sequence',  genre: 'Original',  rating: 9.5, color1: '#00201a', color2: '#003530' },
-    { title: 'Neural Storm',    genre: 'Original',  rating: 9.4, color1: '#150020', color2: '#250035' },
-    { title: 'Zenith Protocol', genre: 'Drama',     rating: 9.2, color1: '#050a15', color2: '#0a1520' },
-    { title: 'Apex Paradox',    genre: 'Original',  rating: 9.3, color1: '#001a30', color2: '#003060' },
-    { title: 'Echo Chamber',    genre: 'Drama',     rating: 9.1, color1: '#050a10', color2: '#0a2010' },
-    { title: 'Mirage Protocol', genre: 'Original',  rating: 9.1, color1: '#2a0020', color2: '#450035' },
-  ],
-};
+// ── Boot ──────────────────────────────────────────────────────────────────────
+(function boot() { runIntro(); })();
 
-const DESCRIPTIONS = {
-  'Neon Horizon':    'A rogue AI architect discovers a hidden signal beneath the Pacific — a message from a civilization that never existed.',
-  'Void Protocol':   'Elite operatives descend into a classified facility where reality itself has begun to fracture.',
-  'Crimson Pulse':   'A shadow organization threatens to collapse the global financial grid using weaponized algorithms.',
-  'Echo Chamber':    'One physicist. Seven simultaneous quantum timelines. Only one version of her can survive.',
-  'Phantom Grid':    'Someone is rewriting history from inside a neural network. The question is: who started first?',
-  'Dark Frequency':  'Deep in Antarctica, a research station intercepts a signal that should not exist — from the future.',
-  'Ultraviolet':     'An extinction-level solar event is 72 hours away. A rogue team races to deploy the last shield.',
-  'Quantum Drift':   'Two entangled particles. Two parallel universes. One impossible love across the quantum foam.',
-  'Binary Storm':    'Inside the world\'s most secure server farm, a single corrupted bit begins to evolve.',
-  'Zenith Protocol': 'The pinnacle of human ambition reaches beyond the atmosphere — and something reaches back.',
-  'Synthwave City':  'A neon-drenched megalopolis where corporate AI overlords and underground rebels clash in 2094.',
-  'Apex Paradox':    'A time-loop thriller set in a collapsing space station where the survivors must outsmart causality.',
-  'Mirage Protocol': 'In a world of perfect digital illusions, one detective can still smell a lie.',
-  'Ghost Sequence':  'Classified government AI goes dark — only to resurface as something no one programmed.',
-  'Fracture Zone':   'The great geological event of 2087 split California in two. The war for resources split humanity.',
-  'Last Signal':     'Earth\'s final transmission to the stars returns — but it\'s been... changed.',
-  'Neural Storm':    'A neurological experiment accidentally creates a shared dream between 200 million people.',
-  'Arc Reactor':     'The inventor who changed the world must now unmake his greatest creation to save it.',
-};
-
-// ─── INTRO ANIMATION ─────────────────────────────────────────────────────────
-
-(function initIntro() {
+// ── INTRO ─────────────────────────────────────────────────────────────────────
+function runIntro() {
   const canvas = document.getElementById('streak-canvas');
   const ctx = canvas.getContext('2d');
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
 
-  function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  resizeCanvas();
-  window.addEventListener('resize', resizeCanvas);
+  const streaks = Array.from({ length: 65 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -Math.random() * canvas.height * 0.5,
+    speed: 3 + Math.random() * 10,
+    width: 0.5 + Math.random() * 2.5,
+    length: 40 + Math.random() * 220,
+    opacity: 0.25 + Math.random() * 0.75,
+    color: ['#00d4ff','#bf40ff','#ff2d78'][Math.floor(Math.random() * 3)],
+    delay: Math.random() * 60,
+    born: false,
+  }));
 
-  // Neon vertical streaks
-  const streaks = [];
-  const STREAK_COUNT = 60;
-
-  function createStreak(delay = 0) {
-    return {
-      x: Math.random() * canvas.width,
-      y: -Math.random() * canvas.height * 0.5,
-      speed: 4 + Math.random() * 12,
-      width: 0.5 + Math.random() * 2.5,
-      length: 40 + Math.random() * 200,
-      opacity: 0,
-      maxOpacity: 0.3 + Math.random() * 0.7,
-      color: Math.random() > 0.5 ? '#00d4ff' : (Math.random() > 0.5 ? '#bf40ff' : '#ff2d78'),
-      delay: delay,
-      active: false,
-    };
-  }
-
-  for (let i = 0; i < STREAK_COUNT; i++) {
-    streaks.push(createStreak(i * 60));
-  }
-
-  let startTime = null;
-  let burstTime = null;
-  let animId;
-
-  function drawStreaks(timestamp) {
-    if (!startTime) startTime = timestamp;
-    const elapsed = timestamp - startTime;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Gentle ambient phase (0–1400ms)
-    const ambientPhase = elapsed < 1400;
-    // Burst phase (1400ms+)
-    if (elapsed > 1400 && !burstTime) burstTime = timestamp;
-
-    streaks.forEach((s, i) => {
-      if (elapsed < s.delay) return;
-
-      if (!s.active) {
-        s.active = true;
-        s.x = Math.random() * canvas.width;
-        s.y = -s.length;
-      }
-
-      // Burst mode: much faster
-      const spd = burstTime ? s.speed * 4 : s.speed * 0.3;
-      s.y += spd;
-
-      // Fade in
-      if (s.opacity < s.maxOpacity) s.opacity = Math.min(s.maxOpacity, s.opacity + 0.04);
-
-      // Wrap
-      if (s.y > canvas.height + s.length) {
-        if (burstTime) {
-          s.active = false;
-          s.delay = timestamp + Math.random() * 100;
-          s.y = -s.length;
-          s.x = Math.random() * canvas.width;
-        } else {
-          s.y = -s.length;
-          s.x = Math.random() * canvas.width;
-        }
-      }
-
-      const gradient = ctx.createLinearGradient(s.x, s.y, s.x, s.y + s.length);
-      gradient.addColorStop(0, 'transparent');
-      gradient.addColorStop(0.5, s.color + Math.floor(s.opacity * 255).toString(16).padStart(2,'0'));
-      gradient.addColorStop(1, 'transparent');
-
-      ctx.strokeStyle = gradient;
-      ctx.lineWidth = burstTime ? s.width * 2 : s.width;
-      ctx.shadowBlur = burstTime ? 20 : 8;
-      ctx.shadowColor = s.color;
-      ctx.beginPath();
-      ctx.moveTo(s.x, s.y);
-      ctx.lineTo(s.x, s.y + s.length);
-      ctx.stroke();
-    });
-
-    ctx.shadowBlur = 0;
-    animId = requestAnimationFrame(drawStreaks);
-  }
-
-  animId = requestAnimationFrame(drawStreaks);
-
-  // Animate wordmark letters
-  const letters = document.querySelectorAll('#intro-wordmark span');
-  letters.forEach((letter, i) => {
-    letter.style.animation = `letterReveal 0.5s ease ${1.2 + i * 0.08}s both`;
+  // Stagger letters
+  document.querySelectorAll('#intro-wordmark span').forEach((el, i) => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(30px)';
+    el.style.display = 'inline-block';
+    el.style.transition = `opacity 0.45s ease ${1.2 + i * 0.07}s, transform 0.45s ease ${1.2 + i * 0.07}s`;
+    setTimeout(() => { el.style.opacity = '1'; el.style.transform = 'translateY(0)'; }, 1200 + i * 70);
   });
 
-  // Inject letter animation keyframe
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes letterReveal {
-      from { opacity: 0; transform: translateY(30px) rotateX(90deg); }
-      to   { opacity: 1; transform: translateY(0) rotateX(0deg); }
-    }
-  `;
-  document.head.appendChild(style);
+  let start = null, burstAt = null, rafId;
+  function draw(ts) {
+    if (!start) start = ts;
+    const elapsed = ts - start;
+    if (elapsed > 1500 && !burstAt) burstAt = ts;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    streaks.forEach(s => {
+      if (elapsed < s.delay) return;
+      if (!s.born) { s.born = true; s.x = Math.random() * canvas.width; s.y = -s.length; }
+      s.y += burstAt ? s.speed * 5 : s.speed * 0.25;
+      if (s.y > canvas.height + s.length) { s.y = -s.length; s.x = Math.random() * canvas.width; }
+      const grd = ctx.createLinearGradient(s.x, s.y, s.x, s.y + s.length);
+      grd.addColorStop(0, 'transparent');
+      grd.addColorStop(0.5, s.color + Math.floor(s.opacity * 255).toString(16).padStart(2, '0'));
+      grd.addColorStop(1, 'transparent');
+      ctx.strokeStyle = grd;
+      ctx.lineWidth = burstAt ? s.width * 2.5 : s.width;
+      ctx.shadowBlur = burstAt ? 25 : 8;
+      ctx.shadowColor = s.color;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(s.x, s.y + s.length); ctx.stroke();
+    });
+    ctx.shadowBlur = 0;
+    rafId = requestAnimationFrame(draw);
+  }
+  rafId = requestAnimationFrame(draw);
 
-  // Transition to main app
   setTimeout(() => {
     const intro = document.getElementById('intro-screen');
     const app = document.getElementById('main-app');
-
-    // Flash burst effect
-    intro.style.transition = 'opacity 0.8s ease';
+    intro.style.transition = 'opacity 0.9s ease';
     intro.style.opacity = '0';
-
     setTimeout(() => {
+      cancelAnimationFrame(rafId);
       intro.style.display = 'none';
-      cancelAnimationFrame(animId);
       app.classList.remove('hidden');
       app.style.opacity = '0';
       app.style.transition = 'opacity 0.6s ease';
-      requestAnimationFrame(() => {
-        app.style.opacity = '1';
-      });
-      initMainApp();
-    }, 800);
-
+      requestAnimationFrame(() => { app.style.opacity = '1'; });
+      initApp();
+    }, 900);
   }, 4600);
-})();
-
-// ─── MAIN APP ────────────────────────────────────────────────────────────────
-
-function initMainApp() {
-  renderAllRows();
-  initHeroCanvas();
-  initNavbarScroll();
-  initHeroThumbnails();
-  initPlayButton();
 }
 
-// ─── RENDER CONTENT ROWS ─────────────────────────────────────────────────────
+// ── INIT ──────────────────────────────────────────────────────────────────────
+async function initApp() {
+  try {
+    const [meRes, catRes, wlRes] = await Promise.all([
+      fetch('/api/me'),
+      fetch('/api/catalog'),
+      fetch('/api/watchlist'),
+    ]);
+    currentUser = await meRes.json();
+    CATALOG = await catRes.json();
+    const wlData = await wlRes.json();
+    watchlist = new Set(wlData.watchlist || []);
 
-function renderAllRows() {
-  Object.keys(CATALOG).forEach(rowKey => {
-    renderRow(rowKey, CATALOG[rowKey]);
-  });
+    // Update user UI
+    const letter = currentUser.avatar || currentUser.name?.[0]?.toUpperCase() || 'U';
+    document.getElementById('avatar-letter').textContent = letter;
+    document.getElementById('menu-avatar-big').textContent = letter;
+    document.getElementById('menu-name').textContent = currentUser.name;
+    document.getElementById('menu-email').textContent = currentUser.email;
+    if (currentUser.role === 'admin') {
+      document.getElementById('menu-role').textContent = '🛡 Administrateur';
+      document.getElementById('menu-role').style.color = '#bf40ff';
+      document.getElementById('admin-btn').style.display = 'flex';
+    }
+
+    renderHero();
+    renderRows();
+    initHeroCanvas();
+    initNavbarScroll();
+  } catch (e) {
+    console.error('initApp error:', e);
+  }
 }
 
-function renderRow(rowKey, items) {
-  const track = document.getElementById(`${rowKey}-track`);
+// ── HERO ──────────────────────────────────────────────────────────────────────
+function renderHero() {
+  const area = document.getElementById('hero-content-area');
+  if (!CATALOG.length) {
+    area.innerHTML = `
+      <div class="hero-welcome">
+        <div class="hero-badge"><span class="badge-icon">◆</span> BIENVENUE</div>
+        <h1 class="hero-title">APPINOX</h1>
+        <p class="hero-desc">La plateforme de streaming est prête. Les contenus seront bientôt disponibles.</p>
+      </div>`;
+    return;
+  }
+  // Show first item as featured
+  const featured = CATALOG[0];
+  area.innerHTML = `
+    <div class="hero-badge"><span class="badge-icon">◆</span> ${featured.type === 'serie' ? 'SÉRIE' : 'FILM'} · ${featured.audio}</div>
+    <h1 class="hero-title">${featured.title}</h1>
+    <div class="hero-meta">
+      ${featured.rating ? `<span class="rating">⭐ ${featured.rating}</span>` : ''}
+      <span class="year">${featured.year}</span>
+      ${featured.quality ? `<span class="tag">${featured.quality}</span>` : ''}
+      ${featured.duration ? `<span class="duration">${featured.duration}</span>` : ''}
+    </div>
+    <p class="hero-desc">${featured.description}</p>
+    <div class="hero-actions">
+      <button class="btn-play" onclick="openModal('${featured.id}')">
+        <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+        Regarder
+      </button>
+      <button class="btn-add" onclick="toggleWatchlist('${featured.id}',this)" id="hero-wl-btn" title="Ma liste">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          ${watchlist.has(featured.id)
+            ? '<polyline points="20 6 9 17 4 12"/>'
+            : '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'}
+        </svg>
+      </button>
+    </div>`;
+}
+
+// ── ROWS ──────────────────────────────────────────────────────────────────────
+function renderRows() {
+  const trending = CATALOG.filter(c => c.rows?.includes('trending'));
+  const recent = [...CATALOG].reverse().slice(0, 12);
+
+  renderRow('trending-track', trending);
+  renderRow('recent-track', recent);
+
+  // Hide empty rows
+  document.getElementById('row-trending').style.display = trending.length ? '' : 'none';
+  document.getElementById('row-recent').style.display = recent.length ? '' : 'none';
+
+  // Grids
+  renderGrid('movies-grid', CATALOG.filter(c => c.type === 'film' || c.type === 'court-metrage' || c.type === 'documentaire'));
+  renderGrid('series-grid', CATALOG.filter(c => c.type === 'serie'));
+}
+
+function renderRow(trackId, items) {
+  const track = document.getElementById(trackId);
   if (!track) return;
-
   track.innerHTML = '';
+  items.forEach((item, i) => track.appendChild(makeCard(item, i)));
+}
 
-  items.forEach((item, idx) => {
-    const card = document.createElement('div');
-    card.className = 'media-card';
-    card.setAttribute('tabindex', '0');
+function renderGrid(gridId, items) {
+  const grid = document.getElementById(gridId);
+  if (!grid) return;
+  grid.innerHTML = '';
+  if (!items.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">🎬</div><p>Aucun contenu disponible</p></div>`;
+    return;
+  }
+  items.forEach((item, i) => grid.appendChild(makeCard(item, i)));
+}
 
-    // Generate abstract SVG art for each card
-    const svgArt = generatePosterArt(item, idx);
+// ── CARD ──────────────────────────────────────────────────────────────────────
+function makeCard(item, idx) {
+  const card = document.createElement('div');
+  card.className = 'media-card';
+  card.dataset.id = item.id;
+  const inList = watchlist.has(item.id);
+  const colors = PALETTE[idx % PALETTE.length];
 
-    const progressHtml = item.progress
-      ? `<div class="card-progress">
-           <div class="card-progress-fill" style="width:${item.progress}%"></div>
-         </div>`
-      : '';
-
-    const continueBadge = item.progress
-      ? `<div class="continue-badge">${item.progress}% watched</div>`
-      : '';
-
-    const originalBadge = item.original
-      ? `<div class="card-rating" style="color:var(--purple);border-color:rgba(191,64,255,0.4);background:rgba(191,64,255,0.15)">◆ ORIG</div>`
-      : `<div class="card-rating">⭐ ${item.rating}</div>`;
-
-    card.innerHTML = `
-      <div class="card-thumb" style="background:linear-gradient(160deg,${item.color1} 0%,${item.color2} 40%,#000 100%)">
-        <div class="card-art">${svgArt}</div>
-        <div class="card-gradient-overlay"></div>
-      </div>
-      ${originalBadge}
-      ${continueBadge}
-      <div class="card-info">
-        <div class="card-title">${item.title}</div>
-        <div class="card-genre">${item.genre} ${item.progress ? '· ' + formatRemaining(item.progress) + ' remaining' : ''}</div>
-      </div>
-      <div class="card-hover-overlay">
-        <button class="play-circle" onclick="openModal('${escStr(item.title)}')">
+  card.innerHTML = `
+    <div class="card-thumb" style="background:linear-gradient(160deg,${colors[0]} 0%,${colors[1]} 55%,#000 100%)">
+      <div class="card-art">${posterArt(idx)}</div>
+      <div class="card-gradient-overlay"></div>
+    </div>
+    <div class="card-badge-top">
+      <span class="audio-badge">${item.audio || 'VO'}</span>
+      ${item.quality ? `<span class="quality-badge">${item.quality}</span>` : ''}
+    </div>
+    ${item.rating ? `<div class="card-rating">⭐ ${item.rating}</div>` : ''}
+    <div class="card-info">
+      <div class="card-title">${item.title}</div>
+      <div class="card-genre">${item.genre} · ${item.year}</div>
+    </div>
+    <div class="card-hover-overlay">
+      <div class="card-hover-actions">
+        <button class="play-circle" onclick="event.stopPropagation();openModal('${item.id}')">
           <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
         </button>
+        <button class="add-circle ${inList ? 'in-list' : ''}" onclick="event.stopPropagation();toggleWatchlist('${item.id}',this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            ${inList ? '<polyline points="20 6 9 17 4 12"/>' : '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'}
+          </svg>
+        </button>
       </div>
-      ${progressHtml}
-    `;
-
-    card.addEventListener('dblclick', () => openModal(item.title));
-    track.appendChild(card);
-  });
+      <div class="card-hover-info">
+        <div class="card-hover-title">${item.title}</div>
+        <div class="card-hover-meta">
+          ${item.rating ? `<span>⭐ ${item.rating}</span>` : ''}
+          ${item.duration ? `<span>${item.duration}</span>` : ''}
+        </div>
+        <div class="card-hover-genre">${item.genre} · <span style="color:var(--cyan)">${item.audio}</span></div>
+      </div>
+    </div>`;
+  card.addEventListener('click', () => openModal(item.id));
+  return card;
 }
 
-function escStr(str) {
-  return str.replace(/'/g, "\\'");
-}
+const PALETTE = [
+  ['#0a0020','#1a0040'],['#200005','#400010'],['#000a20','#001540'],
+  ['#050015','#0a0030'],['#001a10','#003020'],['#200000','#3a0808'],
+  ['#000520','#00093a'],['#1a0005','#300010'],['#0a1000','#152000'],
+  ['#050020','#0a003a'],['#200a00','#3a1500'],['#00101a','#001a2d'],
+];
 
-function formatRemaining(pct) {
-  const totalMin = 130;
-  const rem = Math.round((totalMin * (100 - pct)) / 100);
-  return rem > 60
-    ? `${Math.floor(rem/60)}h ${rem % 60}m`
-    : `${rem}m`;
-}
-
-function generatePosterArt(item, idx) {
-  const hue = [220, 280, 340, 160, 200, 260, 30, 180, 310, 120][idx % 10];
-  const shapes = [
-    `<circle cx="60" cy="60" r="40" fill="none" stroke="hsla(${hue},100%,70%,0.4)" stroke-width="1.5"/>
-     <circle cx="60" cy="60" r="25" fill="hsla(${hue},100%,60%,0.15)"/>
-     <line x1="20" y1="60" x2="100" y2="60" stroke="hsla(${hue},100%,70%,0.3)" stroke-width="1"/>
-     <line x1="60" y1="20" x2="60" y2="100" stroke="hsla(${hue},100%,70%,0.3)" stroke-width="1"/>`,
-
-    `<polygon points="60,15 100,85 20,85" fill="none" stroke="hsla(${hue},100%,70%,0.4)" stroke-width="1.5"/>
-     <polygon points="60,35 85,75 35,75" fill="hsla(${hue},100%,60%,0.1)"/>`,
-
-    `<rect x="20" y="20" width="80" height="80" fill="none" stroke="hsla(${hue},100%,70%,0.3)" stroke-width="1.5" rx="4" transform="rotate(45 60 60)"/>
-     <rect x="35" y="35" width="50" height="50" fill="hsla(${hue},100%,60%,0.1)" rx="4" transform="rotate(45 60 60)"/>`,
-
-    `<path d="M20,60 Q40,20 60,60 Q80,100 100,60" fill="none" stroke="hsla(${hue},100%,70%,0.5)" stroke-width="2"/>
-     <path d="M20,60 Q40,100 60,60 Q80,20 100,60" fill="none" stroke="hsla(${hue+60},100%,70%,0.3)" stroke-width="1.5"/>`,
-
-    `<circle cx="60" cy="60" r="35" fill="none" stroke="hsla(${hue},100%,70%,0.2)" stroke-width="1" stroke-dasharray="6 3"/>
-     <circle cx="60" cy="60" r="20" fill="hsla(${hue},100%,60%,0.2)"/>
-     <circle cx="60" cy="60" r="8" fill="hsla(${hue},100%,80%,0.4)"/>`,
+function posterArt(idx) {
+  const h = [220,280,340,160,200,260,30,180,310,120,240,300][idx % 12];
+  const arts = [
+    `<circle cx="60" cy="60" r="38" fill="none" stroke="hsla(${h},100%,70%,0.3)" stroke-width="1.5"/>
+     <circle cx="60" cy="60" r="20" fill="hsla(${h},100%,60%,0.12)"/>
+     <line x1="22" y1="60" x2="98" y2="60" stroke="hsla(${h},100%,70%,0.2)" stroke-width="1"/>
+     <line x1="60" y1="22" x2="60" y2="98" stroke="hsla(${h},100%,70%,0.2)" stroke-width="1"/>`,
+    `<polygon points="60,18 98,85 22,85" fill="none" stroke="hsla(${h},100%,70%,0.35)" stroke-width="1.5"/>
+     <polygon points="60,36 82,78 38,78" fill="hsla(${h},100%,60%,0.1)"/>`,
+    `<rect x="22" y="22" width="76" height="76" fill="none" stroke="hsla(${h},100%,70%,0.28)" stroke-width="1.5" rx="4" transform="rotate(45 60 60)"/>`,
+    `<path d="M20,60 Q40,20 60,60 Q80,100 100,60" fill="none" stroke="hsla(${h},100%,70%,0.45)" stroke-width="2"/>
+     <path d="M20,60 Q40,100 60,60 Q80,20 100,60" fill="none" stroke="hsla(${h+60},100%,70%,0.25)" stroke-width="1.5"/>`,
+    `<circle cx="60" cy="60" r="34" fill="none" stroke="hsla(${h},100%,70%,0.18)" stroke-dasharray="6 4" stroke-width="1"/>
+     <circle cx="60" cy="60" r="18" fill="hsla(${h},100%,60%,0.18)"/>
+     <circle cx="60" cy="60" r="6" fill="hsla(${h},100%,80%,0.4)"/>`,
   ];
-  return `<svg viewBox="0 0 120 120" fill="none">${shapes[idx % shapes.length]}</svg>`;
+  return `<svg viewBox="0 0 120 120" fill="none">${arts[idx % arts.length]}</svg>`;
 }
 
-// ─── HERO CANVAS ──────────────────────────────────────────────────────────────
+// ── WATCHLIST ─────────────────────────────────────────────────────────────────
+async function toggleWatchlist(id, btn) {
+  try {
+    const res = await fetch(`/api/watchlist/${id}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.inList) { watchlist.add(id); showToast('Ajouté à ma liste ✓'); }
+    else { watchlist.delete(id); showToast('Retiré de ma liste'); }
+    // Update all add buttons for this id
+    document.querySelectorAll('.media-card').forEach(card => {
+      if (card.dataset.id === id) {
+        const b = card.querySelector('.add-circle');
+        if (b) {
+          b.classList.toggle('in-list', data.inList);
+          b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            ${data.inList ? '<polyline points="20 6 9 17 4 12"/>' : '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'}
+          </svg>`;
+        }
+      }
+    });
+    // Update hero btn
+    const hBtn = document.getElementById('hero-wl-btn');
+    if (hBtn && CATALOG[0]?.id === id) {
+      hBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        ${data.inList ? '<polyline points="20 6 9 17 4 12"/>' : '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'}
+      </svg>`;
+    }
+    const mBtn = document.getElementById('modal-watchlist-btn');
+    if (currentModalId === id && mBtn) mBtn.textContent = data.inList ? '✓ Dans ma liste' : '+ Ma liste';
+    if (!document.getElementById('section-mylist').classList.contains('hidden')) renderMyList();
+  } catch { showToast('Erreur', true); }
+}
 
+function toggleWatchlistModal() { if (currentModalId) toggleWatchlist(currentModalId, null); }
+
+// ── MY LIST ───────────────────────────────────────────────────────────────────
+async function renderMyList() {
+  const res = await fetch('/api/watchlist');
+  const data = await res.json();
+  watchlist = new Set(data.watchlist || []);
+  const items = CATALOG.filter(c => watchlist.has(c.id));
+  const grid = document.getElementById('mylist-grid');
+  const empty = document.getElementById('mylist-empty');
+  grid.innerHTML = '';
+  if (!items.length) { empty.classList.remove('hidden'); }
+  else { empty.classList.add('hidden'); items.forEach((c, i) => grid.appendChild(makeCard(c, i))); }
+}
+
+// ── SECTIONS ──────────────────────────────────────────────────────────────────
+function showSection(name, linkEl) {
+  ['home','movies','series','mylist','admin'].forEach(s => {
+    const el = document.getElementById(`section-${s}`);
+    if (el) el.classList.add('hidden');
+  });
+  document.getElementById('search-overlay').classList.add('hidden');
+  const target = document.getElementById(`section-${name}`);
+  if (target) target.classList.remove('hidden');
+  document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+  if (linkEl) linkEl.classList.add('active');
+  if (name === 'mylist') renderMyList();
+  if (name === 'admin') loadAdminData();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────────────────────
+async function loadAdminData() {
+  // Stats
+  document.getElementById('stat-content').textContent = CATALOG.length;
+  document.getElementById('stat-films').textContent = CATALOG.filter(c => c.type === 'film' || c.type === 'documentaire' || c.type === 'court-metrage').length;
+  document.getElementById('stat-series').textContent = CATALOG.filter(c => c.type === 'serie').length;
+
+  // Users
+  try {
+    const res = await fetch('/api/admin/users');
+    const data = await res.json();
+    document.getElementById('stat-users').textContent = data.total;
+    const wrap = document.getElementById('admin-users-table');
+    if (!data.users.length) {
+      wrap.innerHTML = '<p style="color:var(--text-dim);padding:16px">Aucun utilisateur inscrit.</p>';
+    } else {
+      wrap.innerHTML = `<table class="admin-table">
+        <thead><tr><th>Nom</th><th>Email</th><th>Rôle</th><th>Inscription</th></tr></thead>
+        <tbody>${data.users.map(u => `
+          <tr>
+            <td><div class="user-cell"><div class="user-av">${(u.avatar || u.name[0]).toUpperCase()}</div>${u.name}</div></td>
+            <td>${u.email}</td>
+            <td><span class="role-badge ${u.role}">${u.role}</span></td>
+            <td>${new Date(u.createdAt).toLocaleDateString('fr-FR')}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+    }
+  } catch (e) { console.error(e); }
+
+  // Content list
+  renderAdminContentList();
+}
+
+function renderAdminContentList() {
+  const wrap = document.getElementById('admin-content-list');
+  if (!CATALOG.length) {
+    wrap.innerHTML = '<p style="color:var(--text-dim);padding:16px">Aucun contenu ajouté.</p>';
+    return;
+  }
+  wrap.innerHTML = `<table class="admin-table">
+    <thead><tr><th>Titre</th><th>Type</th><th>Genre</th><th>Année</th><th>Audio</th><th>Qualité</th><th>Action</th></tr></thead>
+    <tbody>${CATALOG.map(c => `
+      <tr>
+        <td><strong style="color:#fff">${c.title}</strong></td>
+        <td>${c.type}</td>
+        <td>${c.genre}</td>
+        <td>${c.year}</td>
+        <td><span class="audio-tag">${c.audio}</span></td>
+        <td>${c.quality || '—'}</td>
+        <td><button class="btn-delete" onclick="deleteContent('${c.id}')">Supprimer</button></td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function submitAddContent(e) {
+  e.preventDefault();
+  const errDiv = document.getElementById('form-error');
+  const btn = document.getElementById('form-submit-btn');
+  const btnText = document.getElementById('form-btn-text');
+  const spinner = document.getElementById('form-spinner');
+  errDiv.classList.add('hidden');
+
+  const rows = [...document.querySelectorAll('input[name="rows"]:checked')].map(i => i.value);
+
+  const payload = {
+    title:       document.getElementById('f-title').value.trim(),
+    genre:       document.getElementById('f-genre').value.trim(),
+    type:        document.getElementById('f-type').value,
+    duration:    document.getElementById('f-duration').value.trim(),
+    year:        parseInt(document.getElementById('f-year').value),
+    rating:      parseFloat(document.getElementById('f-rating').value) || null,
+    audio:       document.getElementById('f-audio').value,
+    quality:     document.getElementById('f-quality').value,
+    description: document.getElementById('f-desc').value.trim(),
+    rows,
+  };
+
+  if (!payload.title || !payload.genre || !payload.type || !payload.audio) {
+    errDiv.textContent = 'Veuillez remplir tous les champs obligatoires.';
+    errDiv.classList.remove('hidden');
+    return;
+  }
+
+  btn.disabled = true; btnText.style.display = 'none'; spinner.style.display = 'block';
+
+  try {
+    const res = await fetch('/api/admin/content', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    CATALOG = data.catalog;
+    showToast(`"${payload.title}" ajouté ✓`);
+    resetForm();
+    renderRows();
+    renderHero();
+    renderAdminContentList();
+    // Update stats
+    document.getElementById('stat-content').textContent = CATALOG.length;
+    document.getElementById('stat-films').textContent = CATALOG.filter(c => c.type === 'film' || c.type === 'documentaire' || c.type === 'court-metrage').length;
+    document.getElementById('stat-series').textContent = CATALOG.filter(c => c.type === 'serie').length;
+  } catch (err) {
+    errDiv.textContent = err.message;
+    errDiv.classList.remove('hidden');
+  } finally {
+    btn.disabled = false; btnText.style.display = 'block'; spinner.style.display = 'none';
+  }
+}
+
+async function deleteContent(id) {
+  if (!confirm('Supprimer ce contenu ?')) return;
+  try {
+    const res = await fetch(`/api/admin/content/${id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    CATALOG = data.catalog;
+    showToast('Contenu supprimé');
+    renderRows();
+    renderHero();
+    renderAdminContentList();
+    document.getElementById('stat-content').textContent = CATALOG.length;
+    document.getElementById('stat-films').textContent = CATALOG.filter(c => c.type === 'film' || c.type === 'documentaire' || c.type === 'court-metrage').length;
+    document.getElementById('stat-series').textContent = CATALOG.filter(c => c.type === 'serie').length;
+  } catch (err) { showToast(err.message, true); }
+}
+
+function resetForm() {
+  document.getElementById('add-content-form').reset();
+  document.getElementById('form-error').classList.add('hidden');
+}
+
+function updateDurationPlaceholder() {
+  const type = document.getElementById('f-type').value;
+  const input = document.getElementById('f-duration');
+  input.placeholder = type === 'serie' ? 'ex : 6 épisodes' : 'ex : 1h 52m';
+}
+
+// ── SEARCH ─────────────────────────────────────────────────────────────────────
+let searchTimeout = null;
+function toggleSearch() {
+  const wrap = document.getElementById('search-wrap');
+  const isOpen = wrap.classList.contains('search-open');
+  if (isOpen) {
+    wrap.classList.remove('search-open');
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-overlay').classList.add('hidden');
+    document.getElementById('section-home').classList.remove('hidden');
+  } else {
+    wrap.classList.add('search-open');
+    setTimeout(() => document.getElementById('search-input').focus(), 100);
+  }
+}
+
+function doSearch(q) {
+  clearTimeout(searchTimeout);
+  q = q.trim();
+  if (!q) {
+    document.getElementById('search-overlay').classList.add('hidden');
+    document.getElementById('section-home').classList.remove('hidden');
+    return;
+  }
+  searchTimeout = setTimeout(() => {
+    ['home','movies','series','mylist','admin'].forEach(s => {
+      const el = document.getElementById(`section-${s}`);
+      if (el) el.classList.add('hidden');
+    });
+    const overlay = document.getElementById('search-overlay');
+    overlay.classList.remove('hidden');
+    document.getElementById('search-query-label').textContent = `"${q}"`;
+
+    const ql = q.toLowerCase();
+    const results = CATALOG.filter(c =>
+      c.title.toLowerCase().includes(ql) ||
+      c.genre.toLowerCase().includes(ql) ||
+      c.description.toLowerCase().includes(ql) ||
+      c.audio?.toLowerCase().includes(ql) ||
+      c.type?.toLowerCase().includes(ql)
+    );
+
+    document.getElementById('search-count').textContent =
+      results.length ? ` — ${results.length} résultat${results.length > 1 ? 's' : ''}` : '';
+
+    const track = document.getElementById('search-results-track');
+    const empty = document.getElementById('search-empty');
+    track.innerHTML = '';
+    if (!results.length) { empty.classList.remove('hidden'); }
+    else { empty.classList.add('hidden'); results.forEach((c, i) => track.appendChild(makeCard(c, i))); }
+  }, 200);
+}
+
+// ── HERO CANVAS ───────────────────────────────────────────────────────────────
 function initHeroCanvas() {
   const canvas = document.getElementById('hero-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-
-  function resize() {
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-  }
+  function resize() { canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight; }
   resize();
   window.addEventListener('resize', resize);
-
-  // Particle nebula system
-  const particles = [];
-  const PARTICLE_COUNT = 120;
-
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
-    particles.push({
-      x: Math.random(),
-      y: Math.random(),
-      size: 0.5 + Math.random() * 3,
-      speedX: (Math.random() - 0.5) * 0.0002,
-      speedY: (Math.random() - 0.5) * 0.0002,
-      opacity: Math.random() * 0.6,
-      color: ['#00d4ff', '#bf40ff', '#ff2d78', '#7b2fff'][Math.floor(Math.random() * 4)],
-      twinkle: Math.random() * Math.PI * 2,
-    });
-  }
-
-  // Floating orbs
+  const particles = Array.from({ length: 130 }, () => ({
+    x: Math.random(), y: Math.random(),
+    size: 0.4 + Math.random() * 2.8,
+    vx: (Math.random() - 0.5) * 0.00015,
+    vy: (Math.random() - 0.5) * 0.00015,
+    opacity: Math.random() * 0.6,
+    color: ['#00d4ff','#bf40ff','#ff2d78','#7b2fff'][Math.floor(Math.random() * 4)],
+    tw: Math.random() * Math.PI * 2,
+  }));
   const orbs = [
-    { x: 0.7, y: 0.3, r: 0.22, c1: 'rgba(123,47,255,0.25)', c2: 'transparent' },
-    { x: 0.85, y: 0.6, r: 0.15, c1: 'rgba(0,212,255,0.15)', c2: 'transparent' },
-    { x: 0.6, y: 0.7, r: 0.1,  c1: 'rgba(255,45,120,0.1)', c2: 'transparent' },
+    { x: 0.72, y: 0.32, r: 0.24, c: 'rgba(123,47,255,0.22)' },
+    { x: 0.88, y: 0.62, r: 0.16, c: 'rgba(0,212,255,0.14)' },
   ];
-
-  let raf;
-  function drawHero(ts) {
+  function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Orbs
-    orbs.forEach(orb => {
-      const grd = ctx.createRadialGradient(
-        orb.x * canvas.width, orb.y * canvas.height, 0,
-        orb.x * canvas.width, orb.y * canvas.height, orb.r * canvas.width
-      );
-      grd.addColorStop(0, orb.c1);
-      grd.addColorStop(1, orb.c2);
+    orbs.forEach(o => {
+      const grd = ctx.createRadialGradient(o.x*canvas.width, o.y*canvas.height, 0, o.x*canvas.width, o.y*canvas.height, o.r*canvas.width);
+      grd.addColorStop(0, o.c); grd.addColorStop(1, 'transparent');
       ctx.fillStyle = grd;
-      ctx.beginPath();
-      ctx.arc(orb.x * canvas.width, orb.y * canvas.height, orb.r * canvas.width, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(o.x*canvas.width, o.y*canvas.height, o.r*canvas.width, 0, Math.PI*2); ctx.fill();
     });
-
-    // Particles
     particles.forEach(p => {
-      p.x += p.speedX;
-      p.y += p.speedY;
-      if (p.x < 0) p.x = 1;
-      if (p.x > 1) p.x = 0;
-      if (p.y < 0) p.y = 1;
-      if (p.y > 1) p.y = 0;
-
-      p.twinkle += 0.02;
-      const flicker = 0.4 + 0.6 * Math.sin(p.twinkle);
-
-      ctx.globalAlpha = p.opacity * flicker;
-      ctx.shadowBlur = 8;
-      ctx.shadowColor = p.color;
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = 1; if (p.x > 1) p.x = 0;
+      if (p.y < 0) p.y = 1; if (p.y > 1) p.y = 0;
+      p.tw += 0.018;
+      ctx.globalAlpha = p.opacity * (0.4 + 0.6 * Math.sin(p.tw));
+      ctx.shadowBlur = 8; ctx.shadowColor = p.color;
       ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x * canvas.width, p.y * canvas.height, p.size, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(p.x*canvas.width, p.y*canvas.height, p.size, 0, Math.PI*2); ctx.fill();
     });
-
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-
-    raf = requestAnimationFrame(drawHero);
+    ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+    requestAnimationFrame(draw);
   }
-
-  raf = requestAnimationFrame(drawHero);
+  draw();
 }
 
-// ─── PLAYER CANVAS ───────────────────────────────────────────────────────────
-
-let playerRaf = null;
-let isPlaying = false;
-
-function initPlayerCanvas() {
-  const canvas = document.getElementById('player-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  canvas.width = canvas.offsetWidth || 800;
-  canvas.height = canvas.offsetHeight || 450;
-
-  const lines = [];
-  for (let i = 0; i < 40; i++) {
-    lines.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      len: 20 + Math.random() * 80,
-      speed: 2 + Math.random() * 6,
-      color: ['#00d4ff','#bf40ff','#ff2d78'][Math.floor(Math.random()*3)],
-      opacity: 0.3 + Math.random() * 0.5,
-    });
-  }
-
-  // Sci-fi grid
-  function drawPlayer(ts) {
-    ctx.fillStyle = '#000010';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Grid
-    ctx.strokeStyle = 'rgba(191,64,255,0.1)';
-    ctx.lineWidth = 0.5;
-    for (let x = 0; x < canvas.width; x += 40) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-    }
-    for (let y = 0; y < canvas.height; y += 40) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-    }
-
-    // Moving lines
-    lines.forEach(l => {
-      l.y += l.speed;
-      if (l.y > canvas.height) { l.y = -l.len; l.x = Math.random() * canvas.width; }
-
-      const grd = ctx.createLinearGradient(l.x, l.y, l.x, l.y + l.len);
-      grd.addColorStop(0, 'transparent');
-      grd.addColorStop(0.5, l.color + Math.floor(l.opacity * 200).toString(16).padStart(2,'0'));
-      grd.addColorStop(1, 'transparent');
-
-      ctx.strokeStyle = grd;
-      ctx.lineWidth = 1.5;
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = l.color;
-      ctx.beginPath();
-      ctx.moveTo(l.x, l.y);
-      ctx.lineTo(l.x, l.y + l.len);
-      ctx.stroke();
-    });
-
-    ctx.shadowBlur = 0;
-
-    // Center glow orb
-    const cx = canvas.width / 2, cy = canvas.height / 2;
-    const pulse = 0.85 + 0.15 * Math.sin(ts * 0.002);
-    const grd2 = ctx.createRadialGradient(cx, cy, 0, cx, cy, 120 * pulse);
-    grd2.addColorStop(0, 'rgba(191,64,255,0.3)');
-    grd2.addColorStop(0.4, 'rgba(0,212,255,0.1)');
-    grd2.addColorStop(1, 'transparent');
-    ctx.fillStyle = grd2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 200, 0, Math.PI * 2);
-    ctx.fill();
-
-    // "PLAYING" indicator
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.font = 'bold 11px "Exo 2", sans-serif';
-    ctx.letterSpacing = '4px';
-    ctx.textAlign = 'center';
-    ctx.fillText('APPINOX ORIGINAL · 4K HDR · DOLBY ATMOS', cx, canvas.height - 20);
-
-    if (isPlaying) playerRaf = requestAnimationFrame(drawPlayer);
-  }
-
-  isPlaying = true;
-  playerRaf = requestAnimationFrame(drawPlayer);
+// ── NAVBAR ─────────────────────────────────────────────────────────────────────
+function initNavbarScroll() {
+  const nav = document.getElementById('navbar');
+  window.addEventListener('scroll', () => { nav.classList.toggle('scrolled', window.scrollY > 60); }, { passive: true });
 }
 
-function togglePlay() {
-  isPlaying = !isPlaying;
-  const icon = document.getElementById('play-icon');
-  if (isPlaying) {
-    icon.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
-    initPlayerCanvas();
-  } else {
-    icon.innerHTML = '<polygon points="5,3 19,12 5,21"/>';
-    if (playerRaf) cancelAnimationFrame(playerRaf);
-  }
+function scrollRow(trackId, dir) {
+  const t = document.getElementById(trackId);
+  if (t) t.scrollBy({ left: dir * 450, behavior: 'smooth' });
 }
 
-// ─── MODAL ───────────────────────────────────────────────────────────────────
+function toggleAvatarMenu() { document.getElementById('avatar-menu').classList.toggle('open'); }
+function closeAvatarMenu() { document.getElementById('avatar-menu').classList.remove('open'); }
+document.addEventListener('click', e => {
+  if (!document.getElementById('avatar-wrap')?.contains(e.target)) closeAvatarMenu();
+});
 
-function openModal(title) {
-  const modal = document.getElementById('video-modal');
-  const titleEl = document.getElementById('modal-title');
-  const titleText = document.getElementById('modal-title-text');
-  const descEl = document.getElementById('modal-desc');
+async function logout() {
+  await fetch('/api/logout', { method: 'POST' });
+  window.location.href = '/login';
+}
 
-  titleEl.textContent = title;
-  titleText.textContent = title;
-  descEl.textContent = DESCRIPTIONS[title] || 'An extraordinary cinematic experience awaits.';
-
-  modal.classList.remove('modal-hidden');
+// ── MODAL ──────────────────────────────────────────────────────────────────────
+function openModal(id) {
+  const item = CATALOG.find(c => c.id === id);
+  if (!item) return;
+  currentModalId = id;
+  document.getElementById('modal-title-text').textContent = item.title;
+  document.getElementById('modal-playing-title').textContent = item.title;
+  document.getElementById('modal-desc-text').textContent = item.description;
+  document.getElementById('total-time').textContent = item.duration || '—';
+  const tags = document.getElementById('modal-tags');
+  tags.innerHTML = [
+    item.quality ? `<span class="tag-badge">${item.quality}</span>` : '',
+    `<span class="tag-badge">${item.audio}</span>`,
+    item.rating ? `<span class="rating-badge">⭐ ${item.rating}</span>` : '',
+    item.year ? `<span class="tag-badge">${item.year}</span>` : '',
+  ].join('');
+  document.getElementById('modal-watchlist-btn').textContent = watchlist.has(id) ? '✓ Dans ma liste' : '+ Ma liste';
+  document.getElementById('video-modal').classList.remove('modal-hidden');
   document.body.style.overflow = 'hidden';
-
-  // Start player
-  setTimeout(() => {
-    initPlayerCanvas();
-
-    // Progress simulation
-    let pct = 0;
-    const fill = document.getElementById('progress-fill');
-    const currentTime = document.getElementById('current-time');
-    const progressInterval = setInterval(() => {
-      if (!document.body.contains(modal) || modal.classList.contains('modal-hidden')) {
-        clearInterval(progressInterval);
-        return;
-      }
-      pct += 0.05;
-      if (pct >= 100) pct = 0;
-      if (fill) fill.style.width = pct + '%';
-      // Update thumb position
-      const thumb = modal.querySelector('.progress-thumb');
-      if (thumb) thumb.style.left = pct + '%';
-
-      // Fake time display
-      const totalSec = 8280;
-      const elapsed = Math.floor((pct / 100) * totalSec);
-      const h = Math.floor(elapsed / 3600);
-      const m = Math.floor((elapsed % 3600) / 60);
-      const s = elapsed % 60;
-      if (currentTime) {
-        currentTime.textContent = h > 0
-          ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
-          : `${m}:${String(s).padStart(2,'0')}`;
-      }
-    }, 200);
-
-    modal._progressInterval = progressInterval;
-  }, 100);
+  progressPct = 0;
+  setTimeout(() => { startPlayerCanvas(); startProgressTimer(item.duration); }, 100);
 }
 
 function closeModal() {
-  const modal = document.getElementById('video-modal');
-  modal.classList.add('modal-hidden');
+  document.getElementById('video-modal').classList.add('modal-hidden');
   document.body.style.overflow = '';
   isPlaying = false;
   if (playerRaf) cancelAnimationFrame(playerRaf);
-  if (modal._progressInterval) clearInterval(modal._progressInterval);
+  if (progressInterval) clearInterval(progressInterval);
+  playerRaf = null; progressInterval = null; currentModalId = null;
 }
 
-// Keyboard close
+// ── PLAYER CANVAS ─────────────────────────────────────────────────────────────
+function startPlayerCanvas() {
+  const canvas = document.getElementById('player-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth || 860;
+  canvas.height = canvas.offsetHeight || 484;
+  const lines = Array.from({ length: 45 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    len: 30 + Math.random() * 100,
+    speed: 1.5 + Math.random() * 5,
+    color: ['#00d4ff','#bf40ff','#ff2d78'][Math.floor(Math.random() * 3)],
+    op: 0.2 + Math.random() * 0.5, w: 0.5 + Math.random() * 2,
+  }));
+  isPlaying = true;
+  document.getElementById('play-icon').innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+
+  function draw(ts) {
+    if (!isPlaying) return;
+    const bg = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    bg.addColorStop(0, '#000010'); bg.addColorStop(1, '#0a0020');
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = 'rgba(191,64,255,0.06)'; ctx.lineWidth = 0.5;
+    for (let x = 0; x < canvas.width; x += 44) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
+    for (let y = 0; y < canvas.height; y += 44) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
+    lines.forEach(l => {
+      l.y += l.speed;
+      if (l.y > canvas.height + l.len) { l.y = -l.len; l.x = Math.random() * canvas.width; }
+      const grd = ctx.createLinearGradient(l.x, l.y, l.x, l.y + l.len);
+      grd.addColorStop(0, 'transparent');
+      grd.addColorStop(0.5, l.color + Math.floor(l.op * 255).toString(16).padStart(2, '0'));
+      grd.addColorStop(1, 'transparent');
+      ctx.strokeStyle = grd; ctx.lineWidth = l.w;
+      ctx.shadowBlur = 10; ctx.shadowColor = l.color;
+      ctx.beginPath(); ctx.moveTo(l.x, l.y); ctx.lineTo(l.x, l.y + l.len); ctx.stroke();
+    });
+    ctx.shadowBlur = 0;
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    const pulse = 0.85 + 0.15 * Math.sin(ts * 0.0015);
+    const orb = ctx.createRadialGradient(cx, cy, 0, cx, cy, 140 * pulse);
+    orb.addColorStop(0, 'rgba(191,64,255,0.28)'); orb.addColorStop(0.5, 'rgba(0,212,255,0.08)'); orb.addColorStop(1, 'transparent');
+    ctx.fillStyle = orb; ctx.beginPath(); ctx.arc(cx, cy, 200, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.07; ctx.fillStyle = '#fff';
+    ctx.font = 'bold 10px "Rajdhani",sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('APPINOX', cx, canvas.height - 18);
+    ctx.globalAlpha = 1;
+    playerRaf = requestAnimationFrame(draw);
+  }
+  if (playerRaf) cancelAnimationFrame(playerRaf);
+  playerRaf = requestAnimationFrame(draw);
+}
+
+function togglePlay() {
+  const icon = document.getElementById('play-icon');
+  if (isPlaying) {
+    isPlaying = false;
+    if (playerRaf) cancelAnimationFrame(playerRaf);
+    icon.innerHTML = '<polygon points="5,3 19,12 5,21"/>';
+  } else {
+    startPlayerCanvas();
+  }
+}
+
+function restartPlayer() {
+  progressPct = 0;
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('progress-thumb').style.left = '0%';
+  document.getElementById('current-time').textContent = '0:00';
+}
+
+function seekTo(e, bar) {
+  const rect = bar.getBoundingClientRect();
+  progressPct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+  document.getElementById('progress-fill').style.width = progressPct + '%';
+  document.getElementById('progress-thumb').style.left = progressPct + '%';
+}
+
+function toggleMute() {
+  isMuted = !isMuted;
+  document.getElementById('vol-icon').innerHTML = isMuted
+    ? `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>`
+    : `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>`;
+}
+
+function setVolume(v) { isMuted = v == 0; }
+
+function toggleFullscreen() {
+  const el = document.querySelector('.modal-player');
+  if (!document.fullscreenElement) el.requestFullscreen?.();
+  else document.exitFullscreen?.();
+}
+
+function startProgressTimer(duration) {
+  if (progressInterval) clearInterval(progressInterval);
+  const totalSec = parseDuration(duration);
+  progressInterval = setInterval(() => {
+    if (!isPlaying) return;
+    progressPct += (100 / totalSec) * 0.25;
+    if (progressPct >= 100) progressPct = 0;
+    const fill = document.getElementById('progress-fill');
+    const thumb = document.getElementById('progress-thumb');
+    const ct = document.getElementById('current-time');
+    if (fill) fill.style.width = progressPct + '%';
+    if (thumb) thumb.style.left = progressPct + '%';
+    if (ct) ct.textContent = formatTime(Math.floor((progressPct / 100) * totalSec));
+  }, 250);
+}
+
+function parseDuration(str) {
+  if (!str) return 5400;
+  const hm = str.match(/(\d+)h\s*(\d+)m/);
+  if (hm) return parseInt(hm[1]) * 3600 + parseInt(hm[2]) * 60;
+  const m = str.match(/(\d+)m/); if (m) return parseInt(m[1]) * 60;
+  const ep = str.match(/(\d+)\s*épisode/); if (ep) return parseInt(ep[1]) * 2400;
+  return 5400;
+}
+
+function formatTime(sec) {
+  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+// ── SHARE ─────────────────────────────────────────────────────────────────────
+function shareContent() {
+  const item = CATALOG.find(c => c.id === currentModalId);
+  if (!item) return;
+  if (navigator.share) navigator.share({ title: item.title, text: item.description, url: location.href });
+  else navigator.clipboard.writeText(location.href).then(() => showToast('Lien copié ✓'));
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' toast-error' : '');
+  t.classList.remove('hidden');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.add('hidden'), 2600);
+}
+
+// Keyboard shortcuts
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Escape') {
+    if (!document.getElementById('video-modal').classList.contains('modal-hidden')) closeModal();
+    else if (document.getElementById('search-wrap').classList.contains('search-open')) toggleSearch();
+  }
+  if (e.key === ' ' && !document.getElementById('video-modal').classList.contains('modal-hidden')) {
+    e.preventDefault(); togglePlay();
+  }
 });
-
-// ─── SCROLL ROW ──────────────────────────────────────────────────────────────
-
-function scrollRow(rowKey, direction) {
-  const track = document.getElementById(`${rowKey}-track`);
-  if (!track) return;
-  const scrollAmount = 440;
-  track.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
-}
-
-// ─── NAVBAR SCROLL ───────────────────────────────────────────────────────────
-
-function initNavbarScroll() {
-  const nav = document.getElementById('navbar');
-  window.addEventListener('scroll', () => {
-    if (window.scrollY > 60) {
-      nav.classList.add('scrolled');
-    } else {
-      nav.classList.remove('scrolled');
-    }
-  }, { passive: true });
-}
-
-// ─── HERO THUMBNAILS ─────────────────────────────────────────────────────────
-
-function initHeroThumbnails() {
-  const thumbs = document.querySelectorAll('.thumb-item');
-  const titles = ['Neon Horizon', 'Void Protocol', 'Crimson Pulse', 'Echo Chamber', 'Phantom Grid'];
-  const heroTitle = document.querySelector('.hero-title');
-  const heroDesc = document.querySelector('.hero-desc');
-  const heroGenre = document.querySelector('.hero-badge');
-
-  const heroData = [
-    { title: 'NEON\n<em>HORIZON</em>', desc: DESCRIPTIONS['Neon Horizon'], badge: 'APPINOX ORIGINAL', rating: '9.4' },
-    { title: 'VOID\n<em>PROTOCOL</em>', desc: DESCRIPTIONS['Void Protocol'], badge: 'THRILLER', rating: '8.9' },
-    { title: 'CRIMSON\n<em>PULSE</em>', desc: DESCRIPTIONS['Crimson Pulse'], badge: 'ACTION', rating: '8.7' },
-    { title: 'ECHO\n<em>CHAMBER</em>', desc: DESCRIPTIONS['Echo Chamber'], badge: 'DRAMA', rating: '9.1' },
-    { title: 'PHANTOM\n<em>GRID</em>', desc: DESCRIPTIONS['Phantom Grid'], badge: 'MYSTERY', rating: '8.5' },
-  ];
-
-  thumbs.forEach((thumb, i) => {
-    thumb.addEventListener('click', () => {
-      thumbs.forEach(t => t.classList.remove('active'));
-      thumb.classList.add('active');
-
-      const data = heroData[i];
-      if (heroTitle) {
-        heroTitle.style.opacity = '0';
-        heroTitle.style.transform = 'translateY(10px)';
-        setTimeout(() => {
-          heroTitle.innerHTML = data.title.replace('\n', '<br/>');
-          heroTitle.style.transition = 'all 0.4s ease';
-          heroTitle.style.opacity = '1';
-          heroTitle.style.transform = 'translateY(0)';
-        }, 200);
-      }
-      if (heroDesc) {
-        heroDesc.style.opacity = '0';
-        setTimeout(() => {
-          heroDesc.textContent = data.desc;
-          heroDesc.style.transition = 'opacity 0.4s ease';
-          heroDesc.style.opacity = '1';
-        }, 300);
-      }
-      if (heroGenre) {
-        setTimeout(() => {
-          heroGenre.innerHTML = `<span class="badge-icon">◆</span> ${data.badge}`;
-        }, 200);
-      }
-    });
-  });
-}
-
-// ─── HERO PLAY BUTTON ────────────────────────────────────────────────────────
-
-function initPlayButton() {
-  const playBtn = document.querySelector('.btn-play');
-  if (playBtn) {
-    playBtn.addEventListener('click', () => {
-      openModal('Neon Horizon');
-    });
-  }
-
-  const infoBtn = document.querySelector('.btn-info');
-  if (infoBtn) {
-    infoBtn.addEventListener('click', () => {
-      openModal('Neon Horizon');
-    });
-  }
-}

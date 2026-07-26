@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>APPINOX — Inscription</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Exo+2:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="auth.css"/>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+
+  <div class="auth-wrapper">
+    <a href="/login" class="auth-logo">
+      <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg" class="auth-icon">
+        <defs>
+          <linearGradient id="g1" x1="0%" y1="100%" x2="60%" y2="0%">
+            <stop offset="0%" style="stop-color:#00d4ff"/>
+            <stop offset="100%" style="stop-color:#5a1fff"/>
+          </linearGradient>
+          <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#7b2fff"/>
+            <stop offset="100%" style="stop-color:#ff2d78"/>
+          </linearGradient>
+          <filter id="glow"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <polygon points="40,6 10,70 30,70 40,40" fill="url(#g1)" filter="url(#glow)"/>
+        <polygon points="40,6 70,70 50,70 40,40" fill="#1a0050" stroke="rgba(0,212,255,0.3)" stroke-width="0.5"/>
+        <polygon points="22,52 58,52 55,44 25,44" fill="url(#g1)" opacity="0.7"/>
+        <line x1="44" y1="58" x2="66" y2="22" stroke="url(#g2)" stroke-width="6" stroke-linecap="round" filter="url(#glow)"/>
+        <polygon points="66,22 52,26 62,38" fill="#ff2d78" filter="url(#glow)"/>
+      </svg>
+      <span class="auth-wordmark">APPINOX</span>
+    </a>
+
+    <div class="auth-card">
+      <h1 class="auth-title">Créer un compte</h1>
+      <p class="auth-subtitle">Rejoignez la plateforme APPINOX</p>
+
+      <div id="error-msg" class="error-banner" style="display:none"></div>
+      <div id="success-msg" class="success-banner" style="display:none"></div>
+
+      <form id="register-form" class="auth-form" onsubmit="handleRegister(event)">
+        <div class="field-group">
+          <label class="field-label">Nom complet</label>
+          <div class="field-wrap">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            <input type="text" id="name" class="field-input" placeholder="Votre nom" required autocomplete="name"/>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Adresse email</label>
+          <div class="field-wrap">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+            </svg>
+            <input type="email" id="email" class="field-input" placeholder="votre@email.com" required autocomplete="email"/>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Mot de passe</label>
+          <div class="field-wrap">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="password" class="field-input" placeholder="Min. 6 caractères" required autocomplete="new-password" oninput="checkStrength(this.value)"/>
+            <button type="button" class="eye-btn" onclick="togglePwd('password', this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <div class="strength-bar">
+            <div class="strength-fill" id="strength-fill"></div>
+          </div>
+          <span class="strength-label" id="strength-label"></span>
+        </div>
+
+        <div class="field-group">
+          <label class="field-label">Confirmer le mot de passe</label>
+          <div class="field-wrap">
+            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="confirm" class="field-input" placeholder="Répéter le mot de passe" required autocomplete="new-password"/>
+            <button type="button" class="eye-btn" onclick="togglePwd('confirm', this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <label class="checkbox-wrap terms-wrap">
+          <input type="checkbox" id="terms" required/>
+          <span class="checkbox-custom"></span>
+          <span>J'accepte les <a href="#" class="link-accent">Conditions d'utilisation</a> et la <a href="#" class="link-accent">Politique de confidentialité</a></span>
+        </label>
+
+        <button type="submit" class="btn-submit" id="submit-btn">
+          <span id="btn-text">Créer mon compte</span>
+          <div id="btn-spinner" class="spinner" style="display:none"></div>
+        </button>
+      </form>
+
+      <div class="auth-divider"><span>ou</span></div>
+
+      <p class="auth-switch">
+        Déjà un compte ?
+        <a href="/login" class="link-accent">Se connecter</a>
+      </p>
+    </div>
+
+    <p class="auth-footer">© 2026 APPINOX Streaming, Inc.</p>
+  </div>
+
+  <script src="auth.js"></script>
+  <script>
+    function checkStrength(pwd) {
+      const fill = document.getElementById('strength-fill');
+      const label = document.getElementById('strength-label');
+      let score = 0;
+      if (pwd.length >= 6) score++;
+      if (pwd.length >= 10) score++;
+      if (/[A-Z]/.test(pwd)) score++;
+      if (/[0-9]/.test(pwd)) score++;
+      if (/[^A-Za-z0-9]/.test(pwd)) score++;
+      const levels = [
+        { w: '0%',   color: 'transparent', text: '' },
+        { w: '25%',  color: '#ff2d78',     text: 'Très faible' },
+        { w: '50%',  color: '#ff8c00',     text: 'Faible' },
+        { w: '75%',  color: '#ffd700',     text: 'Moyen' },
+        { w: '90%',  color: '#00d4ff',     text: 'Fort' },
+        { w: '100%', color: '#00ff88',     text: 'Très fort' },
+      ];
+      const l = levels[Math.min(score, 5)];
+      fill.style.width = l.w;
+      fill.style.background = l.color;
+      label.textContent = l.text;
+      label.style.color = l.color;
+    }
+
+    async function handleRegister(e) {
+      e.preventDefault();
+      const pwd = document.getElementById('password').value;
+      const confirm = document.getElementById('confirm').value;
+      const errDiv = document.getElementById('error-msg');
+      const successDiv = document.getElementById('success-msg');
+
+      if (pwd !== confirm) {
+        errDiv.textContent = 'Les mots de passe ne correspondent pas';
+        errDiv.style.display = 'flex';
+        return;
+      }
+
+      const btn = document.getElementById('submit-btn');
+      const btnText = document.getElementById('btn-text');
+      const spinner = document.getElementById('btn-spinner');
+      btn.disabled = true;
+      btnText.style.display = 'none';
+      spinner.style.display = 'block';
+      errDiv.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: document.getElementById('name').value,
+            email: document.getElementById('email').value,
+            password: pwd,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erreur lors de l\'inscription');
+        successDiv.textContent = `Bienvenue, ${data.name} ! Redirection en cours…`;
+        successDiv.style.display = 'flex';
+        setTimeout(() => window.location.href = '/', 1200);
+      } catch (err) {
+        errDiv.textContent = err.message;
+        errDiv.style.display = 'flex';
+        btn.disabled = false;
+        btnText.style.display = 'block';
+        spinner.style.display = 'none';
+      }
+    }
+  </script>
+</body>
+</html>

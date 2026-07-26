@@ -1,329 +1,465 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>APPINOX</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Exo+2:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Exo+2:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
 
-  <!-- ═══════════════════════════════════════
-       INTRO SCREEN
-  ═══════════════════════════════════════ -->
-  <div id="intro-screen">
-    <canvas id="streak-canvas"></canvas>
-
-    <div id="intro-logo">
-      <svg id="logo-icon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="iconGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" style="stop-color:#00d4ff"/>
-            <stop offset="50%" style="stop-color:#7b2fff"/>
-            <stop offset="100%" style="stop-color:#ff2d78"/>
-          </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-          <filter id="strongGlow">
-            <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
-            <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-        </defs>
-        <!-- Triangle base -->
-        <polygon points="10,105 60,15 110,105" fill="url(#iconGrad)" filter="url(#glow)" opacity="0.9"/>
-        <!-- Inner triangle highlight -->
-        <polygon points="30,95 60,40 90,95" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-        <!-- Arrow shaft -->
-        <line x1="45" y1="85" x2="85" y2="30" stroke="url(#iconGrad)" stroke-width="10" stroke-linecap="round" filter="url(#strongGlow)"/>
-        <!-- Arrow head -->
-        <polygon points="85,30 63,32 83,52" fill="#ff2d78" filter="url(#strongGlow)"/>
-      </svg>
-
-      <div id="intro-wordmark">
-        <span>A</span><span>P</span><span>P</span><span>I</span><span>N</span><span>O</span><span>X</span>
-      </div>
-    </div>
-
-    <div id="intro-tagline">STREAM THE FUTURE</div>
-    <div id="intro-loader">
-      <div id="loader-bar"></div>
+<!-- ── INTRO ──────────────────────────────────────────────────────────────── -->
+<div id="intro-screen">
+  <canvas id="streak-canvas"></canvas>
+  <div id="intro-logo">
+    <svg id="logo-icon" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="iLF" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#00eeff"/>
+          <stop offset="60%" style="stop-color:#0088dd"/>
+          <stop offset="100%" style="stop-color:#3344cc"/>
+        </linearGradient>
+        <linearGradient id="iRF" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#110033"/>
+          <stop offset="100%" style="stop-color:#060015"/>
+        </linearGradient>
+        <linearGradient id="iIF" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#0066bb"/>
+          <stop offset="100%" style="stop-color:#003388"/>
+        </linearGradient>
+        <linearGradient id="iAR" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#cc00ff"/>
+          <stop offset="100%" style="stop-color:#ff2d78"/>
+        </linearGradient>
+        <filter id="iGL"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="iGA"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <!-- Left bright face -->
+      <polygon points="60,8 14,106 38,106 60,58" fill="url(#iLF)" filter="url(#iGL)"/>
+      <!-- Left inner ridge (lighter facet) -->
+      <polygon points="60,8 60,44 38,106 14,106" fill="#33aaff" opacity="0.18"/>
+      <!-- Crossbar -->
+      <polygon points="24,80 90,80 84,65 30,65" fill="url(#iIF)" opacity="0.85"/>
+      <!-- Right dark face -->
+      <polygon points="60,8 106,106 82,106 60,58" fill="url(#iRF)" stroke="rgba(80,80,255,0.2)" stroke-width="0.7"/>
+      <!-- Right inner shadow -->
+      <polygon points="60,8 82,106 106,106" fill="#04000e" opacity="0.6"/>
+      <!-- Arrow shaft -->
+      <line x1="50" y1="96" x2="95" y2="24" stroke="url(#iAR)" stroke-width="9" stroke-linecap="round" filter="url(#iGA)"/>
+      <!-- Arrow head -->
+      <polygon points="95,24 72,32 88,52" fill="#ff2d78" filter="url(#iGA)"/>
+      <!-- Arrow head highlight -->
+      <polygon points="95,24 78,28 86,38" fill="#ff80aa" opacity="0.5"/>
+    </svg>
+    <div id="intro-wordmark">
+      <span>A</span><span>P</span><span>P</span><span>I</span><span>N</span><span>O</span><span>X</span>
     </div>
   </div>
+  <div id="intro-loader"><div id="loader-bar"></div></div>
+</div>
 
-  <!-- ═══════════════════════════════════════
-       MAIN APP
-  ═══════════════════════════════════════ -->
-  <div id="main-app" class="hidden">
+<!-- ── MAIN APP ───────────────────────────────────────────────────────────── -->
+<div id="main-app" class="hidden">
 
-    <!-- NAVBAR -->
-    <nav id="navbar">
-      <div class="nav-left">
-        <div class="nav-logo">
-          <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg" class="nav-icon">
-            <defs>
-              <linearGradient id="navGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-                <stop offset="0%" style="stop-color:#00d4ff"/>
-                <stop offset="100%" style="stop-color:#bf40ff"/>
-              </linearGradient>
-            </defs>
-            <polygon points="4,44 25,6 46,44" fill="url(#navGrad)"/>
-            <line x1="18" y1="36" x2="36" y2="12" stroke="#ff2d78" stroke-width="4" stroke-linecap="round"/>
-            <polygon points="36,12 26,14 34,22" fill="#ff2d78"/>
-          </svg>
-          <span class="nav-wordmark">APPINOX</span>
-        </div>
-        <ul class="nav-links">
-          <li><a href="#" class="active">Home</a></li>
-          <li><a href="#">Originals</a></li>
-          <li><a href="#">Movies</a></li>
-          <li><a href="#">Series</a></li>
-          <li><a href="#">Live</a></li>
-          <li><a href="#">My List</a></li>
-        </ul>
+  <!-- NAVBAR -->
+  <nav id="navbar">
+    <div class="nav-left">
+      <div class="nav-logo">
+        <svg viewBox="0 0 70 70" xmlns="http://www.w3.org/2000/svg" class="nav-icon">
+          <defs>
+            <linearGradient id="nLF" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:#00eeff"/><stop offset="100%" style="stop-color:#3344cc"/>
+            </linearGradient>
+            <linearGradient id="nAR" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:#cc00ff"/><stop offset="100%" style="stop-color:#ff2d78"/>
+            </linearGradient>
+          </defs>
+          <polygon points="35,5 8,62 22,62 35,34" fill="url(#nLF)"/>
+          <polygon points="35,5 62,62 48,62 35,34" fill="#110033" stroke="rgba(80,80,255,0.18)" stroke-width="0.5"/>
+          <polygon points="14,47 53,47 49,38 18,38" fill="url(#nLF)" opacity="0.8"/>
+          <line x1="29" y1="56" x2="55" y2="14" stroke="url(#nAR)" stroke-width="5.5" stroke-linecap="round"/>
+          <polygon points="55,14 42,19 51,30" fill="#ff2d78"/>
+        </svg>
+        <span class="nav-wordmark">APPINOX</span>
       </div>
-      <div class="nav-right">
-        <div class="nav-search">
+      <ul class="nav-links">
+        <li><a href="#" class="active" onclick="showSection('home',this);return false">Accueil</a></li>
+        <li><a href="#" onclick="showSection('movies',this);return false">Films</a></li>
+        <li><a href="#" onclick="showSection('series',this);return false">Séries</a></li>
+        <li><a href="#" onclick="showSection('mylist',this);return false">Ma Liste</a></li>
+      </ul>
+    </div>
+    <div class="nav-right">
+      <div class="nav-search-wrap" id="search-wrap">
+        <button class="nav-icon-btn" onclick="toggleSearch()" title="Rechercher">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-        </div>
-        <div class="nav-notif">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
-          <span class="notif-dot"></span>
-        </div>
-        <div class="nav-avatar">
-          <div class="avatar-ring">
-            <div class="avatar-inner">A</div>
-          </div>
+        </button>
+        <div class="search-box" id="search-box">
+          <input type="text" id="search-input" placeholder="Titre, genre, audio…" oninput="doSearch(this.value)" autocomplete="off"/>
+          <button onclick="toggleSearch()" class="search-close">✕</button>
         </div>
       </div>
-    </nav>
+      <div class="avatar-wrap" id="avatar-wrap">
+        <div class="avatar-ring" onclick="toggleAvatarMenu()">
+          <div class="avatar-inner" id="avatar-letter">U</div>
+        </div>
+        <div class="avatar-menu" id="avatar-menu">
+          <div class="avatar-menu-header">
+            <div class="menu-avatar-big" id="menu-avatar-big">U</div>
+            <div>
+              <div class="menu-name" id="menu-name">—</div>
+              <div class="menu-email" id="menu-email"></div>
+              <div class="menu-role" id="menu-role"></div>
+            </div>
+          </div>
+          <div class="avatar-menu-divider"></div>
+          <a href="#" class="avatar-menu-item" onclick="showSection('mylist',null);closeAvatarMenu();return false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            Ma Liste
+          </a>
+          <a href="#" class="avatar-menu-item" id="admin-btn" style="display:none" onclick="showSection('admin',null);closeAvatarMenu();return false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Panneau Admin
+          </a>
+          <div class="avatar-menu-divider"></div>
+          <button class="avatar-menu-item logout-btn" onclick="logout()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Déconnexion
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
 
-    <!-- HERO BANNER -->
+  <!-- SEARCH OVERLAY -->
+  <div id="search-overlay" class="hidden">
+    <div class="search-results-header">
+      Résultats pour : <strong id="search-query-label"></strong>
+      <span id="search-count" class="search-count"></span>
+    </div>
+    <div class="cards-track" id="search-results-track" style="padding:20px 60px 30px;flex-wrap:wrap;overflow:visible;"></div>
+    <div id="search-empty" class="empty-state hidden">
+      <div class="empty-icon">🔍</div>
+      <p>Aucun résultat pour cette recherche.</p>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div id="section-home">
     <section id="hero">
       <div class="hero-bg">
         <canvas id="hero-canvas"></canvas>
         <div class="hero-overlay"></div>
       </div>
-
-      <div class="hero-content">
-        <div class="hero-badge">
-          <span class="badge-icon">◆</span> APPINOX ORIGINAL
-        </div>
-        <h1 class="hero-title">NEON<br/><em>HORIZON</em></h1>
-        <div class="hero-meta">
-          <span class="rating">⭐ 9.4</span>
-          <span class="year">2026</span>
-          <span class="tag">4K ULTRA</span>
-          <span class="tag">HDR</span>
-          <span class="duration">2h 18m</span>
-        </div>
-        <p class="hero-desc">
-          In 2089, a rogue AI architect discovers a hidden signal beneath the Pacific — a message from a civilization that never existed. A thrilling cyberpunk odyssey across dimensions of light and shadow.
-        </p>
-        <div class="hero-actions">
-          <button class="btn-play">
-            <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-            Play Now
-          </button>
-          <button class="btn-info">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            More Info
-          </button>
-          <button class="btn-add">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Hero thumbnails strip -->
-      <div class="hero-thumbnails">
-        <div class="thumb-item active" data-title="Neon Horizon" data-genre="Sci-Fi">
-          <div class="thumb-glow"></div>
-        </div>
-        <div class="thumb-item" data-title="Void Protocol" data-genre="Thriller"></div>
-        <div class="thumb-item" data-title="Crimson Pulse" data-genre="Action"></div>
-        <div class="thumb-item" data-title="Echo Chamber" data-genre="Drama"></div>
-        <div class="thumb-item" data-title="Phantom Grid" data-genre="Mystery"></div>
+      <div class="hero-content" id="hero-content-area">
+        <!-- filled by JS -->
       </div>
     </section>
 
-    <!-- CONTENT ROWS -->
     <main id="content">
-
-      <!-- Trending Now -->
-      <section class="content-row" id="trending">
+      <section class="content-row" id="row-trending">
         <div class="row-header">
-          <h2 class="row-title">
-            <span class="title-accent">▶</span> Trending Now
-          </h2>
-          <a href="#" class="see-all">See All <span>›</span></a>
+          <h2 class="row-title"><span class="title-accent">▶</span> Tendances</h2>
         </div>
         <div class="cards-wrapper">
-          <button class="scroll-btn scroll-left" onclick="scrollRow('trending', -1)">‹</button>
-          <div class="cards-track" id="trending-track">
-            <!-- Cards generated by JS -->
-          </div>
-          <button class="scroll-btn scroll-right" onclick="scrollRow('trending', 1)">›</button>
+          <button class="scroll-btn scroll-left" onclick="scrollRow('trending-track',-1)">‹</button>
+          <div class="cards-track" id="trending-track"></div>
+          <button class="scroll-btn scroll-right" onclick="scrollRow('trending-track',1)">›</button>
         </div>
       </section>
 
-      <!-- Appinox Originals -->
-      <section class="content-row" id="originals">
+      <section class="content-row" id="row-recent">
         <div class="row-header">
-          <h2 class="row-title">
-            <span class="title-accent" style="color:#bf40ff">◆</span> APPINOX Originals
-          </h2>
-          <a href="#" class="see-all">See All <span>›</span></a>
+          <h2 class="row-title"><span class="title-accent" style="color:#bf40ff">◈</span> Ajoutés récemment</h2>
         </div>
         <div class="cards-wrapper">
-          <button class="scroll-btn scroll-left" onclick="scrollRow('originals', -1)">‹</button>
-          <div class="cards-track" id="originals-track">
-          </div>
-          <button class="scroll-btn scroll-right" onclick="scrollRow('originals', 1)">›</button>
+          <button class="scroll-btn scroll-left" onclick="scrollRow('recent-track',-1)">‹</button>
+          <div class="cards-track" id="recent-track"></div>
+          <button class="scroll-btn scroll-right" onclick="scrollRow('recent-track',1)">›</button>
         </div>
       </section>
-
-      <!-- Continue Watching -->
-      <section class="content-row" id="continue">
-        <div class="row-header">
-          <h2 class="row-title">
-            <span class="title-accent" style="color:#00d4ff">↻</span> Continue Watching
-          </h2>
-          <a href="#" class="see-all">See All <span>›</span></a>
-        </div>
-        <div class="cards-wrapper">
-          <button class="scroll-btn scroll-left" onclick="scrollRow('continue', -1)">‹</button>
-          <div class="cards-track" id="continue-track">
-          </div>
-          <button class="scroll-btn scroll-right" onclick="scrollRow('continue', 1)">›</button>
-        </div>
-      </section>
-
-      <!-- Top Rated -->
-      <section class="content-row" id="toprated">
-        <div class="row-header">
-          <h2 class="row-title">
-            <span class="title-accent" style="color:#ffd700">★</span> Top Rated
-          </h2>
-          <a href="#" class="see-all">See All <span>›</span></a>
-        </div>
-        <div class="cards-wrapper">
-          <button class="scroll-btn scroll-left" onclick="scrollRow('toprated', -1)">‹</button>
-          <div class="cards-track" id="toprated-track">
-          </div>
-          <button class="scroll-btn scroll-right" onclick="scrollRow('toprated', 1)">›</button>
-        </div>
-      </section>
-
     </main>
-
-    <!-- FOOTER -->
-    <footer id="footer">
-      <div class="footer-logo">
-        <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg" class="footer-icon">
-          <defs>
-            <linearGradient id="footerGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" style="stop-color:#00d4ff"/>
-              <stop offset="100%" style="stop-color:#bf40ff"/>
-            </linearGradient>
-          </defs>
-          <polygon points="4,44 25,6 46,44" fill="url(#footerGrad)" opacity="0.7"/>
-          <line x1="18" y1="36" x2="36" y2="12" stroke="#ff2d78" stroke-width="4" stroke-linecap="round"/>
-          <polygon points="36,12 26,14 34,22" fill="#ff2d78"/>
-        </svg>
-        <span>APPINOX</span>
-      </div>
-      <div class="footer-links">
-        <a href="#">Terms of Service</a>
-        <a href="#">Privacy Policy</a>
-        <a href="#">Cookie Preferences</a>
-        <a href="#">Help Center</a>
-        <a href="#">Careers</a>
-      </div>
-      <p class="footer-copy">© 2026 APPINOX Streaming, Inc. All rights reserved.</p>
-    </footer>
-
   </div>
 
-  <!-- VIDEO MODAL -->
-  <div id="video-modal" class="modal-hidden">
-    <div class="modal-backdrop" onclick="closeModal()"></div>
-    <div class="modal-container">
-      <button class="modal-close" onclick="closeModal()">✕</button>
-      <div class="modal-player">
-        <canvas id="player-canvas"></canvas>
-        <div class="player-overlay">
-          <div class="player-controls">
-            <div class="player-progress">
-              <div class="progress-bar">
-                <div class="progress-fill" id="progress-fill"></div>
-                <div class="progress-thumb"></div>
-              </div>
-              <div class="time-display"><span id="current-time">0:00</span> / <span id="total-time">2:18:00</span></div>
-            </div>
-            <div class="player-buttons">
-              <button class="ctrl-btn" onclick="togglePlay()">
-                <svg id="play-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-              </button>
-              <button class="ctrl-btn">
-                <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="4" x2="5" y2="20" stroke="currentColor" stroke-width="2"/></svg>
-              </button>
-              <div class="volume-ctrl">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-                </svg>
-              </div>
-              <span class="player-title" id="modal-title">Neon Horizon</span>
-              <div class="right-controls">
-                <button class="ctrl-btn">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-                  </svg>
-                </button>
-                <button class="ctrl-btn" onclick="closeModal()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+  <!-- FILMS -->
+  <div id="section-movies" class="hidden section-page">
+    <div class="section-header">
+      <h1>Films &amp; <em>Documentaires</em></h1>
+      <p>Films, courts-métrages et documentaires disponibles sur APPINOX</p>
+    </div>
+    <div class="section-grid" id="movies-grid"></div>
+  </div>
+
+  <!-- SÉRIES -->
+  <div id="section-series" class="hidden section-page">
+    <div class="section-header">
+      <h1><em>Séries</em></h1>
+      <p>Toutes les séries disponibles sur APPINOX</p>
+    </div>
+    <div class="section-grid" id="series-grid"></div>
+  </div>
+
+  <!-- MA LISTE -->
+  <div id="section-mylist" class="hidden section-page">
+    <div class="section-header">
+      <h1>Ma <em>Liste</em></h1>
+      <p>Vos contenus sauvegardés</p>
+    </div>
+    <div class="section-grid" id="mylist-grid"></div>
+    <div id="mylist-empty" class="empty-state hidden">
+      <div class="empty-icon">📋</div>
+      <p>Votre liste est vide. Ajoutez des contenus pour les retrouver ici.</p>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="section-admin" class="hidden section-page">
+    <div class="section-header">
+      <h1>Panneau <em>Admin</em></h1>
+      <p>Gestion de la plateforme APPINOX</p>
+    </div>
+
+    <!-- Stats -->
+    <div class="admin-stats-grid">
+      <div class="admin-stat-card">
+        <div class="stat-icon">👥</div>
+        <div class="stat-value" id="stat-users">—</div>
+        <div class="stat-label">Utilisateurs</div>
       </div>
-      <div class="modal-info">
-        <div class="modal-meta">
-          <h2 id="modal-title-text">Neon Horizon</h2>
-          <div class="modal-tags">
-            <span class="tag-badge">4K</span>
-            <span class="tag-badge">HDR</span>
-            <span class="tag-badge">Dolby Atmos</span>
-            <span class="rating-badge">⭐ 9.4</span>
+      <div class="admin-stat-card">
+        <div class="stat-icon">🎬</div>
+        <div class="stat-value" id="stat-content">0</div>
+        <div class="stat-label">Contenus</div>
+      </div>
+      <div class="admin-stat-card">
+        <div class="stat-icon">📽</div>
+        <div class="stat-value" id="stat-films">0</div>
+        <div class="stat-label">Films</div>
+      </div>
+      <div class="admin-stat-card">
+        <div class="stat-icon">📺</div>
+        <div class="stat-value" id="stat-series">0</div>
+        <div class="stat-label">Séries</div>
+      </div>
+    </div>
+
+    <!-- Add content form -->
+    <div class="admin-card" style="margin-bottom:28px">
+      <div class="admin-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Ajouter un contenu
+      </div>
+      <div id="form-error" class="form-error hidden"></div>
+      <form class="add-form" id="add-content-form" onsubmit="submitAddContent(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Titre <span class="required">*</span></label>
+            <input type="text" id="f-title" class="form-input" placeholder="Titre du contenu" required/>
           </div>
-          <p id="modal-desc">A rogue AI architect discovers a hidden signal beneath the Pacific...</p>
+          <div class="form-group">
+            <label class="form-label">Genre <span class="required">*</span></label>
+            <input type="text" id="f-genre" class="form-input" placeholder="ex : Action, Comédie, Sci-Fi…" required/>
+          </div>
         </div>
-        <div class="modal-actions">
-          <button class="btn-play-sm">
-            <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-            Play
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Type <span class="required">*</span></label>
+            <select id="f-type" class="form-select" required onchange="updateDurationPlaceholder()">
+              <option value="">— Choisir —</option>
+              <option value="film">Film</option>
+              <option value="serie">Série</option>
+              <option value="documentaire">Documentaire</option>
+              <option value="court-metrage">Court-métrage</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Durée</label>
+            <input type="text" id="f-duration" class="form-input" placeholder="ex : 1h 52m"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Année</label>
+            <input type="number" id="f-year" class="form-input" placeholder="2026" min="1900" max="2099"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Note /10</label>
+            <input type="number" id="f-rating" class="form-input" placeholder="ex : 8.5" min="0" max="10" step="0.1"/>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Audio <span class="required">*</span></label>
+            <select id="f-audio" class="form-select" required>
+              <option value="">— Choisir —</option>
+              <option value="VO">VO — Version Originale</option>
+              <option value="VOSTF">VOSTF — VO sous-titrée</option>
+              <option value="VF">VF — Version Française</option>
+              <option value="VFF">VFF — VF Française de France</option>
+              <option value="VFQ">VFQ — VF Québécoise</option>
+              <option value="Multi">Multi — Plusieurs langues</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Qualité</label>
+            <select id="f-quality" class="form-select">
+              <option value="">— Optionnel —</option>
+              <option value="4K">4K Ultra HD</option>
+              <option value="1080p">1080p Full HD</option>
+              <option value="720p">720p HD</option>
+              <option value="HDR">HDR</option>
+              <option value="4K HDR">4K HDR</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group full-width">
+          <label class="form-label">Description</label>
+          <textarea id="f-desc" class="form-textarea" placeholder="Synopsis, description du contenu…"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Afficher dans</label>
+          <div class="checkbox-row">
+            <label class="form-check">
+              <input type="checkbox" name="rows" value="trending"/>
+              <span class="check-custom"></span>
+              Tendances
+            </label>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-reset" onclick="resetForm()">Réinitialiser</button>
+          <button type="submit" class="btn-add-content" id="form-submit-btn">
+            <span id="form-btn-text">Ajouter le contenu</span>
+            <div id="form-spinner" class="spinner" style="display:none"></div>
           </button>
-          <button class="btn-list">+ My List</button>
-          <button class="btn-share">Share</button>
         </div>
+      </form>
+    </div>
+
+    <!-- Content list -->
+    <div class="admin-card" style="margin-bottom:28px">
+      <div class="admin-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3l-4 4-4-4"/></svg>
+        Catalogue
+      </div>
+      <div id="admin-content-list" class="admin-table-wrap">
+        <p style="color:var(--text-dim);padding:16px;font-size:13px">Aucun contenu ajouté.</p>
+      </div>
+    </div>
+
+    <!-- Users list -->
+    <div class="admin-card">
+      <div class="admin-card-title">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Utilisateurs inscrits
+      </div>
+      <div id="admin-users-table" class="admin-table-wrap">
+        <div class="loading-msg">Chargement…</div>
       </div>
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- FOOTER -->
+  <footer id="footer">
+    <div class="footer-logo">
+      <svg viewBox="0 0 70 70" xmlns="http://www.w3.org/2000/svg" class="footer-icon">
+        <defs>
+          <linearGradient id="fLF" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#00eeff"/><stop offset="100%" style="stop-color:#3344cc"/>
+          </linearGradient>
+          <linearGradient id="fAR" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#cc00ff"/><stop offset="100%" style="stop-color:#ff2d78"/>
+          </linearGradient>
+        </defs>
+        <polygon points="35,5 8,62 22,62 35,34" fill="url(#fLF)" opacity="0.65"/>
+        <polygon points="35,5 62,62 48,62 35,34" fill="#110033" opacity="0.65"/>
+        <polygon points="14,47 53,47 49,38 18,38" fill="url(#fLF)" opacity="0.5"/>
+        <line x1="29" y1="56" x2="55" y2="14" stroke="url(#fAR)" stroke-width="5.5" stroke-linecap="round" opacity="0.7"/>
+        <polygon points="55,14 42,19 51,30" fill="#ff2d78" opacity="0.7"/>
+      </svg>
+      <span>APPINOX</span>
+    </div>
+    <div class="footer-links">
+      <a href="#">Conditions d'utilisation</a>
+      <a href="#">Confidentialité</a>
+      <a href="#">Cookies</a>
+      <a href="#">Centre d'aide</a>
+    </div>
+    <p class="footer-copy">© 2026 APPINOX Streaming, Inc. Tous droits réservés.</p>
+  </footer>
+</div>
+
+<!-- VIDEO MODAL -->
+<div id="video-modal" class="modal-hidden">
+  <div class="modal-backdrop" onclick="closeModal()"></div>
+  <div class="modal-container">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-player">
+      <canvas id="player-canvas"></canvas>
+      <div class="player-overlay">
+        <div class="player-controls">
+          <div class="player-progress">
+            <div class="progress-bar" onclick="seekTo(event,this)">
+              <div class="progress-fill" id="progress-fill"></div>
+              <div class="progress-thumb" id="progress-thumb"></div>
+            </div>
+            <div class="time-display">
+              <span id="current-time">0:00</span> / <span id="total-time">—</span>
+            </div>
+          </div>
+          <div class="player-buttons">
+            <button class="ctrl-btn" onclick="togglePlay()" title="Lecture / Pause">
+              <svg id="play-icon" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+            </button>
+            <button class="ctrl-btn" onclick="restartPlayer()" title="Recommencer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.96"/></svg>
+            </button>
+            <div class="volume-wrap">
+              <button class="ctrl-btn" onclick="toggleMute()" title="Muet">
+                <svg id="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+              </button>
+              <div class="volume-slider-wrap">
+                <input type="range" class="volume-slider" id="vol-slider" min="0" max="100" value="80" oninput="setVolume(this.value)"/>
+              </div>
+            </div>
+            <span class="player-title" id="modal-playing-title">—</span>
+            <div class="right-controls">
+              <button class="ctrl-btn" onclick="toggleFullscreen()" title="Plein écran">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-info">
+      <div class="modal-meta">
+        <h2 id="modal-title-text">—</h2>
+        <div class="modal-tags" id="modal-tags"></div>
+        <p id="modal-desc-text"></p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-play-sm" onclick="togglePlay()">
+          <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+          Lecture
+        </button>
+        <button class="btn-list" id="modal-watchlist-btn" onclick="toggleWatchlistModal()">+ Ma liste</button>
+        <button class="btn-share" onclick="shareContent()">Partager</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script src="app.js"></script>
 </body>
 </html>
