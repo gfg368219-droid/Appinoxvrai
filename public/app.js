@@ -49,8 +49,153 @@ window.addEventListener('beforeunload', saveProgress);
 // ── Boot ──────────────────────────────────────────────────────────────────────
 (function boot() { runIntro(); })();
 
+// ── INTRO SOUND (Web Audio API, aucun fichier externe) ───────────────────────
+function playIntroSound() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+
+    function gain(val, when) {
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(val, when ?? ctx.currentTime);
+      return g;
+    }
+
+    // ── 1. Rumble grave (dès le départ) ──────────────────────────────────────
+    const rumbleOsc = ctx.createOscillator();
+    const rumbleGain = ctx.createGain();
+    rumbleOsc.type = 'sawtooth';
+    rumbleOsc.frequency.setValueAtTime(40, ctx.currentTime);
+    rumbleOsc.frequency.exponentialRampToValueAtTime(28, ctx.currentTime + 3);
+    rumbleGain.gain.setValueAtTime(0, ctx.currentTime);
+    rumbleGain.gain.linearRampToValueAtTime(0.07, ctx.currentTime + 0.3);
+    rumbleGain.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 3.5);
+    rumbleGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 4.5);
+    const rumbleFilter = ctx.createBiquadFilter();
+    rumbleFilter.type = 'lowpass';
+    rumbleFilter.frequency.value = 120;
+    rumbleOsc.connect(rumbleFilter);
+    rumbleFilter.connect(rumbleGain);
+    rumbleGain.connect(ctx.destination);
+    rumbleOsc.start(ctx.currentTime);
+    rumbleOsc.stop(ctx.currentTime + 4.6);
+
+    // ── 2. Impact + sweep montant quand le logo apparaît (t=0.5s) ────────────
+    const t1 = ctx.currentTime + 0.5;
+
+    // Impact grave
+    const impactOsc = ctx.createOscillator();
+    const impactGain = ctx.createGain();
+    impactOsc.type = 'sine';
+    impactOsc.frequency.setValueAtTime(90, t1);
+    impactOsc.frequency.exponentialRampToValueAtTime(30, t1 + 0.8);
+    impactGain.gain.setValueAtTime(0.6, t1);
+    impactGain.gain.exponentialRampToValueAtTime(0.001, t1 + 1.0);
+    impactOsc.connect(impactGain);
+    impactGain.connect(ctx.destination);
+    impactOsc.start(t1);
+    impactOsc.stop(t1 + 1.0);
+
+    // Sweep montant (whoosh)
+    const sweepOsc = ctx.createOscillator();
+    const sweepGain = ctx.createGain();
+    const sweepFilter = ctx.createBiquadFilter();
+    sweepOsc.type = 'sawtooth';
+    sweepOsc.frequency.setValueAtTime(200, t1);
+    sweepOsc.frequency.exponentialRampToValueAtTime(1800, t1 + 0.7);
+    sweepFilter.type = 'bandpass';
+    sweepFilter.frequency.setValueAtTime(400, t1);
+    sweepFilter.frequency.exponentialRampToValueAtTime(2000, t1 + 0.7);
+    sweepFilter.Q.value = 3;
+    sweepGain.gain.setValueAtTime(0, t1);
+    sweepGain.gain.linearRampToValueAtTime(0.18, t1 + 0.15);
+    sweepGain.gain.exponentialRampToValueAtTime(0.001, t1 + 0.75);
+    sweepOsc.connect(sweepFilter);
+    sweepFilter.connect(sweepGain);
+    sweepGain.connect(ctx.destination);
+    sweepOsc.start(t1);
+    sweepOsc.stop(t1 + 0.8);
+
+    // Bruit blanc pour le "air"
+    const bufSize = ctx.sampleRate * 1.0;
+    const noiseBuffer = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const nd = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) nd[i] = (Math.random() * 2 - 1);
+    const noiseSource = ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.setValueAtTime(600, t1);
+    noiseFilter.frequency.exponentialRampToValueAtTime(4000, t1 + 0.6);
+    noiseFilter.Q.value = 1.5;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.12, t1);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, t1 + 0.9);
+    noiseSource.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(ctx.destination);
+    noiseSource.start(t1);
+    noiseSource.stop(t1 + 1.0);
+
+    // ── 3. Scintillement quand les lettres apparaissent (t=1.2s) ─────────────
+    const t2 = ctx.currentTime + 1.2;
+    const shimmerFreqs = [1046, 1318, 1568, 2093, 2637];
+    shimmerFreqs.forEach((freq, i) => {
+      const delay = i * 0.07;
+      const sOsc = ctx.createOscillator();
+      const sGain = ctx.createGain();
+      sOsc.type = 'sine';
+      sOsc.frequency.value = freq;
+      sGain.gain.setValueAtTime(0, t2 + delay);
+      sGain.gain.linearRampToValueAtTime(0.06, t2 + delay + 0.04);
+      sGain.gain.exponentialRampToValueAtTime(0.001, t2 + delay + 0.35);
+      sOsc.connect(sGain);
+      sGain.connect(ctx.destination);
+      sOsc.start(t2 + delay);
+      sOsc.stop(t2 + delay + 0.4);
+    });
+
+    // ── 4. Accélération (burst à t=1.5s) ─────────────────────────────────────
+    const t3 = ctx.currentTime + 1.5;
+    const burstOsc = ctx.createOscillator();
+    const burstGain = ctx.createGain();
+    burstOsc.type = 'sawtooth';
+    burstOsc.frequency.setValueAtTime(60, t3);
+    burstOsc.frequency.exponentialRampToValueAtTime(400, t3 + 0.4);
+    burstGain.gain.setValueAtTime(0, t3);
+    burstGain.gain.linearRampToValueAtTime(0.22, t3 + 0.05);
+    burstGain.gain.exponentialRampToValueAtTime(0.001, t3 + 0.5);
+    const burstFilter = ctx.createBiquadFilter();
+    burstFilter.type = 'lowpass';
+    burstFilter.frequency.setValueAtTime(300, t3);
+    burstFilter.frequency.exponentialRampToValueAtTime(3000, t3 + 0.4);
+    burstOsc.connect(burstFilter);
+    burstFilter.connect(burstGain);
+    burstGain.connect(ctx.destination);
+    burstOsc.start(t3);
+    burstOsc.stop(t3 + 0.6);
+
+    // ── 5. Note finale grave (fin du chargement ~t=3.8s) ─────────────────────
+    const t4 = ctx.currentTime + 3.8;
+    const endOsc = ctx.createOscillator();
+    const endGain = ctx.createGain();
+    endOsc.type = 'sine';
+    endOsc.frequency.setValueAtTime(130, t4);
+    endOsc.frequency.exponentialRampToValueAtTime(65, t4 + 0.6);
+    endGain.gain.setValueAtTime(0.3, t4);
+    endGain.gain.exponentialRampToValueAtTime(0.001, t4 + 0.8);
+    endOsc.connect(endGain);
+    endGain.connect(ctx.destination);
+    endOsc.start(t4);
+    endOsc.stop(t4 + 1.0);
+
+  } catch(e) { /* audio non dispo, on passe */ }
+}
+
 // ── INTRO ─────────────────────────────────────────────────────────────────────
 function runIntro() {
+  playIntroSound();
   const canvas = document.getElementById('streak-canvas');
   const ctx = canvas.getContext('2d');
   function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
