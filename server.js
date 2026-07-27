@@ -297,15 +297,17 @@ app.post('/api/admin/upload-image', requireAuth, requireAdmin, uploadImage.singl
   res.json({ success: true, filename: req.file.filename, imageUrl: '/images/' + req.file.filename });
 });
 
-// ── API: Admin — Auto Search (iTunes, aucune clé requise) ────────────────────
+// ── API: Admin — Auto Search (TVmaze pour séries, iTunes pour films) ──────────
 app.get('/api/admin/auto-search', requireAuth, requireAdmin, async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json({ results: [] });
   try {
     const headers = { 'User-Agent': 'APPINOX/1.0' };
+
+    // Fetch movies from iTunes + series from TVmaze (both free, no key)
     const [moviesRes, tvRes] = await Promise.all([
       fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=movie&entity=movie&limit=10&country=fr`, { headers }),
-      fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=tvShow&entity=tvSeason&limit=10&country=fr`, { headers }),
+      fetch(`https://api.tvmaze.com/search/shows?q=${encodeURIComponent(q)}`, { headers }),
     ]);
     const [moviesData, tvData] = await Promise.all([moviesRes.json(), tvRes.json()]);
 
@@ -317,7 +319,7 @@ app.get('/api/admin/auto-search', requireAuth, requireAdmin, async (req, res) =>
       if (!title || seen.has(key)) return null;
       seen.add(key);
       return {
-        itunesId: String(x.trackId || x.collectionId),
+        itunesId: 'itunes:' + String(x.trackId || x.collectionId),
         title,
         type: 'film',
         year: (x.releaseDate || '').slice(0, 4),
@@ -328,25 +330,27 @@ app.get('/api/admin/auto-search', requireAuth, requireAdmin, async (req, res) =>
       };
     }
 
-    function mapTV(x) {
-      let title = (x.collectionName || x.artistName || '').replace(/,?\s*(saison|season)\s*\d+/i, '').trim();
+    function mapTV(entry) {
+      const show = entry.show || entry;
+      const title = (show.name || '').trim();
       const key = title.toLowerCase() + 'serie';
       if (!title || seen.has(key)) return null;
       seen.add(key);
+      const runtime = show.averageRuntime || show.runtime || null;
       return {
-        itunesId: String(x.collectionId),
+        itunesId: 'tvmaze:' + String(show.id),
         title,
         type: 'serie',
-        year: (x.releaseDate || '').slice(0, 4),
-        overview: x.longDescription || x.description || '',
-        poster: (x.artworkUrl100 || '').replace('100x100bb', '600x600bb') || null,
-        genre: x.primaryGenreName || '',
-        durationMs: x.trackTimeMillis || null,
+        year: (show.premiered || show.ended || '').slice(0, 4),
+        overview: (show.summary || '').replace(/<[^>]*>/g, ''),
+        poster: show.image?.original || show.image?.medium || null,
+        genre: (show.genres || [])[0] || '',
+        durationMs: runtime ? runtime * 60000 : null,
       };
     }
 
     const movies = (moviesData.results || []).map(mapMovie).filter(Boolean);
-    const tv     = (tvData.results || []).map(mapTV).filter(Boolean);
+    const tv     = (Array.isArray(tvData) ? tvData : []).map(mapTV).filter(Boolean);
 
     // Interleave films and series so both appear in results
     const results = [];
@@ -362,10 +366,31 @@ app.get('/api/admin/auto-search', requireAuth, requireAdmin, async (req, res) =>
   }
 });
 
-// ── API: Admin — Auto Detail (iTunes lookup) ──────────────────────────────────
+// ── API: Admin — Auto Detail (iTunes ou TVmaze selon préfixe) ─────────────────
 app.get('/api/admin/auto-detail/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(req.params.id)}`, {
+    const raw = req.params.id;
+
+    // TVmaze detail
+    if (raw.startsWith('tvmaze:')) {
+      const tvId = raw.slice(7);
+      const r = await fetch(`https://api.tvmaze.com/shows/${encodeURIComponent(tvId)}`, {
+        headers: { 'User-Agent': 'APPINOX/1.0' },
+      });
+      const show = await r.json();
+      const runtime = show.averageRuntime || show.runtime || null;
+      const runtimeStr = runtime
+        ? (runtime >= 60 ? `${Math.floor(runtime / 60)}h ${runtime % 60}min` : `${runtime}min`)
+        : null;
+      return res.json({
+        genre: (show.genres || [])[0] || '',
+        runtime: runtimeStr,
+      });
+    }
+
+    // iTunes detail (fallback)
+    const itunesId = raw.startsWith('itunes:') ? raw.slice(7) : raw;
+    const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(itunesId)}`, {
       headers: { 'User-Agent': 'APPINOX/1.0' },
     });
     const data = await r.json();
