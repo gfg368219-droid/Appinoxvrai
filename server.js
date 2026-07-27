@@ -131,6 +131,27 @@ app.get('/register', (req, res) => {
   if (req.session?.userId) return res.redirect('/');
   res.sendFile(path.join(__dirname, 'public', 'register.html'));
 });
+app.get('/forgot-password', (req, res) => {
+  if (req.session?.userId) return res.redirect('/');
+  res.sendFile(path.join(__dirname, 'public', 'forgot-password.html'));
+});
+
+// ── API: Forgot password (public) ─────────────────────────────────────────────
+app.post('/api/forgot-password', (req, res) => {
+  const { email, secretCode, newPassword } = req.body;
+  if (!email || !secretCode || !newPassword)
+    return res.status(400).json({ error: 'Tous les champs sont requis' });
+  if (newPassword.length < 6)
+    return res.status(400).json({ error: 'Mot de passe trop court (min. 6 caractères)' });
+  const users = loadUsers();
+  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase().trim());
+  if (!user) return res.status(404).json({ error: 'Aucun compte avec cet email' });
+  if (!user.secretCode || user.secretCode.toLowerCase() !== secretCode.toLowerCase().trim())
+    return res.status(401).json({ error: 'Code secret incorrect' });
+  user.passwordHash = bcrypt.hashSync(newPassword, 10);
+  saveUsers(users);
+  res.json({ success: true });
+});
 
 // ── API: Login ────────────────────────────────────────────────────────────────
 app.post('/api/login', (req, res) => {
@@ -157,7 +178,9 @@ app.post('/api/login', (req, res) => {
   req.session.role   = user.role || 'user';
   req.session.name   = user.name;
   req.session.email  = user.email;
-  res.json({ success: true, role: user.role || 'user', name: user.name });
+  // firstLogin: true if user has no secretCode yet
+  const needsCode = !user.secretCode;
+  res.json({ success: true, role: user.role || 'user', name: user.name, firstLogin: needsCode });
 });
 
 // ── API: Register ─────────────────────────────────────────────────────────────
@@ -178,6 +201,8 @@ app.post('/api/register', (req, res) => {
     role: 'user', createdAt: new Date().toISOString(),
     avatar: name.trim()[0].toUpperCase(),
     watchlist: [],
+    secretCode: null,
+    firstLogin: true,
   };
   users.push(newUser);
   saveUsers(users);
@@ -186,7 +211,7 @@ app.post('/api/register', (req, res) => {
   req.session.role   = 'user';
   req.session.name   = newUser.name;
   req.session.email  = newUser.email;
-  res.json({ success: true, name: newUser.name });
+  res.json({ success: true, name: newUser.name, firstLogin: true });
 });
 
 // ── API: Logout ───────────────────────────────────────────────────────────────
@@ -196,11 +221,47 @@ app.post('/api/logout', (req, res) => {
 
 // ── API: Me ───────────────────────────────────────────────────────────────────
 app.get('/api/me', requireAuth, (req, res) => {
+  let firstLogin = false;
+  if (req.session.userId !== ADMIN.id) {
+    const user = loadUsers().find(u => u.id === req.session.userId);
+    firstLogin = !user?.secretCode;
+  }
   res.json({
     id: req.session.userId, name: req.session.name,
     email: req.session.email, role: req.session.role,
     avatar: req.session.name?.[0]?.toUpperCase() || 'U',
+    firstLogin,
   });
+});
+
+// ── API: Secret code management ───────────────────────────────────────────────
+app.post('/api/set-secret-code', requireAuth, (req, res) => {
+  if (req.session.userId === ADMIN.id) return res.status(403).json({ error: 'Non applicable' });
+  const { code } = req.body;
+  if (!code || code.trim().length < 3)
+    return res.status(400).json({ error: 'Code trop court (min. 3 caractères)' });
+  const users = loadUsers();
+  const user = users.find(u => u.id === req.session.userId);
+  if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+  user.secretCode = code.trim();
+  user.firstLogin = false;
+  saveUsers(users);
+  res.json({ success: true });
+});
+
+app.get('/api/my-code', requireAuth, (req, res) => {
+  if (req.session.userId === ADMIN.id) return res.json({ code: null });
+  const user = loadUsers().find(u => u.id === req.session.userId);
+  res.json({ code: user?.secretCode || null });
+});
+
+app.post('/api/verify-secret-code', requireAuth, (req, res) => {
+  if (req.session.userId === ADMIN.id) return res.json({ valid: true });
+  const { code } = req.body;
+  const user = loadUsers().find(u => u.id === req.session.userId);
+  if (!user || !user.secretCode) return res.json({ valid: false });
+  const valid = user.secretCode.toLowerCase() === (code || '').toLowerCase().trim();
+  res.json({ valid });
 });
 
 // ── API: Catalog ──────────────────────────────────────────────────────────────

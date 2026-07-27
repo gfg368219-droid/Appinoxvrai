@@ -77,6 +77,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             Panneau Admin
           </a>
+          <a href="#" class="avatar-menu-item" id="code-btn" onclick="showSecretCode();closeAvatarMenu();return false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Mon Code Secret
+          </a>
           <div class="avatar-menu-divider"></div>
           <button class="avatar-menu-item logout-btn" onclick="logout()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -542,6 +546,46 @@
 
 <!-- TOAST -->
 <div id="toast" class="toast hidden"></div>
+
+<!-- ── MODAL : Définir le code secret (première connexion) ─────────────────── -->
+<div id="set-code-modal" class="sc-backdrop" style="display:none">
+  <div class="sc-box">
+    <div class="sc-icon">🔐</div>
+    <h2 class="sc-title">Créez votre code secret</h2>
+    <p class="sc-desc">Ce code vous permettra de récupérer votre mot de passe si vous l'oubliez. Choisissez un mot ou une phrase mémorable.</p>
+    <div id="sc-set-error" class="sc-error" style="display:none"></div>
+    <input type="text" id="sc-set-input" class="sc-input" placeholder="Ex : MonChat2026, Soleil…" autocomplete="off" oninput="document.getElementById('sc-set-error').style.display='none'"/>
+    <button class="sc-btn-primary" onclick="submitSetCode()">Enregistrer mon code</button>
+  </div>
+</div>
+
+<!-- ── MODAL : Voir le code secret ────────────────────────────────────────── -->
+<div id="view-code-modal" class="sc-backdrop" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="sc-box">
+    <button class="sc-close" onclick="document.getElementById('view-code-modal').style.display='none'">✕</button>
+    <div class="sc-icon">🔑</div>
+    <h2 class="sc-title">Mon Code Secret</h2>
+    <p class="sc-desc">Gardez ce code en lieu sûr. Il est indispensable pour récupérer votre mot de passe.</p>
+    <div class="sc-code-display" id="sc-code-value">—</div>
+    <p class="sc-hint">Ce code est uniquement visible par vous.</p>
+    <button class="sc-btn-secondary" onclick="document.getElementById('view-code-modal').style.display='none'">Fermer</button>
+  </div>
+</div>
+
+<!-- ── MODAL : Confirmation déconnexion ────────────────────────────────────── -->
+<div id="logout-modal" class="sc-backdrop" style="display:none">
+  <div class="sc-box">
+    <div class="sc-icon">👋</div>
+    <h2 class="sc-title">Connaissez-vous votre code secret ?</h2>
+    <p class="sc-desc">Pour vous déconnecter en sécurité, saisissez votre code secret.</p>
+    <div id="sc-logout-error" class="sc-error" style="display:none"></div>
+    <input type="text" id="sc-logout-input" class="sc-input" placeholder="Votre code secret" autocomplete="off" oninput="document.getElementById('sc-logout-error').style.display='none'" onkeydown="if(event.key==='Enter')submitLogoutCode()"/>
+    <div style="display:flex;gap:10px">
+      <button class="sc-btn-secondary" onclick="document.getElementById('logout-modal').style.display='none';document.getElementById('sc-logout-input').value=''">Annuler</button>
+      <button class="sc-btn-primary" onclick="submitLogoutCode()">Se déconnecter</button>
+    </div>
+  </div>
+</div>
 
 <!-- Global upload status (persists across section navigation) -->
 <div id="global-upload-indicator" class="global-upload-indicator" style="display:none">

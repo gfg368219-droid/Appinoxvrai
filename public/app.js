@@ -282,6 +282,15 @@ async function initApp() {
       document.getElementById('admin-btn').style.display = 'flex';
     }
 
+    // Hide "Mon Code Secret" menu item for admin
+    const codeBtn = document.getElementById('code-btn');
+    if (codeBtn) codeBtn.style.display = currentUser.role === 'admin' ? 'none' : 'flex';
+
+    // First login: prompt user to create their secret code
+    if (currentUser.firstLogin && currentUser.role !== 'admin') {
+      setTimeout(() => showSetCodeModal(), 600);
+    }
+
     renderHero();
     renderRows();
     renderResumeRow();
@@ -1148,7 +1157,69 @@ function scrollRow(trackId, dir) { const t = document.getElementById(trackId); i
 function toggleAvatarMenu() { document.getElementById('avatar-menu').classList.toggle('open'); }
 function closeAvatarMenu()  { document.getElementById('avatar-menu').classList.remove('open'); }
 document.addEventListener('click', e => { if (!document.getElementById('avatar-wrap')?.contains(e.target)) closeAvatarMenu(); });
-async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login'; }
+async function logout() {
+  // Admin can logout directly
+  if (currentUser?.role === 'admin') {
+    await fetch('/api/logout', { method: 'POST' });
+    window.location.href = '/login';
+    return;
+  }
+  // Regular users must confirm their secret code
+  closeAvatarMenu();
+  document.getElementById('sc-logout-input').value = '';
+  document.getElementById('sc-logout-error').style.display = 'none';
+  document.getElementById('logout-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('sc-logout-input').focus(), 100);
+}
+
+async function submitLogoutCode() {
+  const code = document.getElementById('sc-logout-input').value.trim();
+  const errEl = document.getElementById('sc-logout-error');
+  if (!code) { errEl.textContent = 'Veuillez saisir votre code secret.'; errEl.style.display = 'block'; return; }
+  try {
+    const res = await fetch('/api/verify-secret-code', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json();
+    if (!data.valid) { errEl.textContent = 'Code secret incorrect. Réessayez.'; errEl.style.display = 'block'; return; }
+    await fetch('/api/logout', { method: 'POST' });
+    window.location.href = '/login';
+  } catch { errEl.textContent = 'Erreur réseau. Réessayez.'; errEl.style.display = 'block'; }
+}
+
+async function showSecretCode() {
+  try {
+    const res = await fetch('/api/my-code');
+    const data = await res.json();
+    document.getElementById('sc-code-value').textContent = data.code || '—';
+    document.getElementById('view-code-modal').style.display = 'flex';
+  } catch { showToast('Impossible de charger le code', false); }
+}
+
+function showSetCodeModal() {
+  document.getElementById('sc-set-input').value = '';
+  document.getElementById('sc-set-error').style.display = 'none';
+  document.getElementById('set-code-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('sc-set-input').focus(), 100);
+}
+
+async function submitSetCode() {
+  const code = document.getElementById('sc-set-input').value.trim();
+  const errEl = document.getElementById('sc-set-error');
+  if (code.length < 3) { errEl.textContent = 'Code trop court (min. 3 caractères).'; errEl.style.display = 'block'; return; }
+  try {
+    const res = await fetch('/api/set-secret-code', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json();
+    if (!res.ok) { errEl.textContent = data.error || 'Erreur'; errEl.style.display = 'block'; return; }
+    document.getElementById('set-code-modal').style.display = 'none';
+    showToast('Code secret enregistré ! Gardez-le précieusement. 🔐');
+    if (currentUser) currentUser.firstLogin = false;
+  } catch { errEl.textContent = 'Erreur réseau.'; errEl.style.display = 'block'; }
+}
 
 // ── MODAL ──────────────────────────────────────────────────────────────────────
 async function openModal(id) {
