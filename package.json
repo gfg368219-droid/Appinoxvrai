@@ -8,7 +8,7 @@
     "build": "node migrate.js"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
