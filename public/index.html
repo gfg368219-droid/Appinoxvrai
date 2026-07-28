@@ -340,53 +340,24 @@
           <input type="url" id="f-trailer" class="form-input" placeholder="https://www.youtube.com/watch?v=…"/>
         </div>
 
-        <!-- Poster image upload -->
+        <!-- Poster URL -->
         <div class="form-group full-width">
-          <label class="form-label">Image affiche (poster)
+          <label class="form-label">URL affiche (poster)
             <button type="button" class="tmdb-fill-btn" id="fill-poster-btn" style="display:none" onclick="fillFromTmdb('poster')">+ Auto</button>
           </label>
-          <div class="poster-upload-wrap">
-            <label class="video-upload-label" id="poster-upload-label">
-              <input type="file" id="f-poster" accept="image/*" style="display:none" onchange="onPosterChosen(this)"/>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:20px;height:20px;color:var(--cyan)"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-              <span id="poster-file-label-text">Choisir une image (jpg, png, webp…)</span>
-            </label>
-            <div id="poster-preview-wrap" style="display:none">
-              <img id="poster-preview-img" src="" alt="Aperçu" class="poster-preview"/>
-              <button type="button" class="poster-remove-btn" onclick="removePoster()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-          </div>
-          <input type="hidden" id="f-poster-url" name="posterUrl"/>
-          <div id="poster-upload-progress" style="display:none;margin-top:8px">
-            <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
-              <div id="poster-progress-bar" style="height:100%;width:0%;background:var(--grad);border-radius:3px;transition:width 0.3s"></div>
-            </div>
+          <input type="url" id="f-poster-url" class="form-input" placeholder="https://…/poster.jpg" oninput="onPosterUrlInput(this.value)"/>
+          <div id="poster-preview-wrap" style="display:none;margin-top:8px;position:relative;width:fit-content">
+            <img id="poster-preview-img" src="" alt="Aperçu" class="poster-preview"/>
+            <button type="button" class="poster-remove-btn" onclick="removePoster()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
           </div>
         </div>
 
-        <!-- Video upload -->
+        <!-- Video URL -->
         <div class="form-group full-width">
-          <label class="form-label">Fichier vidéo <span style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0">(upload en arrière-plan)</span></label>
-          <label class="video-upload-label" id="video-upload-label">
-            <input type="file" id="f-video" accept="video/*" style="display:none" onchange="onVideoFileChosen(this)"/>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:22px;height:22px;color:var(--purple)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <span id="video-file-label-text">Choisir un fichier vidéo (mp4, mkv, avi…)</span>
-          </label>
-          <input type="hidden" id="f-video-url" name="videoUrl"/>
-          <div id="video-upload-progress" style="display:none;margin-top:8px">
-            <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
-              <div id="video-progress-bar" style="height:100%;width:0%;background:var(--grad);border-radius:3px;transition:width 0.3s"></div>
-            </div>
-            <div id="video-progress-text" style="font-size:11px;color:var(--text-dim);margin-top:5px">Upload en cours…</div>
-          </div>
-          <!-- Persistent global upload status (shown even if user navigates away) -->
-          <div id="bg-upload-banner" class="bg-upload-banner" style="display:none">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--cyan)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <span id="bg-upload-text">Upload en cours…</span>
-            <div class="bg-upload-bar-wrap"><div id="bg-upload-bar" style="height:100%;width:0%;background:var(--grad);border-radius:3px;"></div></div>
-          </div>
+          <label class="form-label">URL vidéo <span style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0">(lien direct mp4, Google Drive, etc.)</span></label>
+          <input type="url" id="f-video-url" class="form-input" placeholder="https://…/film.mp4"/>
         </div>
 
         <!-- Actors -->
@@ -657,13 +628,6 @@
   </div>
 </div>
 
-<!-- Global upload status (persists across section navigation) -->
-<div id="global-upload-indicator" class="global-upload-indicator" style="display:none">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-  <span id="global-upload-text">Upload…</span>
-  <div class="global-upload-bar-wrap"><div id="global-upload-bar"></div></div>
-  <span id="global-upload-pct">0%</span>
-</div>
 
 <script src="app.js"></script>
 </body>

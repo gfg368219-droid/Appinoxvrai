@@ -416,17 +416,6 @@ app.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── API: Admin — Standalone video upload ──────────────────────────────────────
-app.post('/api/admin/upload-video', requireAuth, requireAdmin, uploadVideo.single('video'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Aucun fichier vidéo reçu' });
-  res.json({ success: true, filename: req.file.filename, videoUrl: '/videos/' + req.file.filename });
-});
-
-// ── API: Admin — Standalone image upload ─────────────────────────────────────
-app.post('/api/admin/upload-image', requireAuth, requireAdmin, uploadImage.single('image'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'Aucune image reçue' });
-  res.json({ success: true, filename: req.file.filename, imageUrl: '/images/' + req.file.filename });
-});
 
 // ── API: Admin — Auto Search (TVmaze + iTunes) ────────────────────────────────
 app.get('/api/admin/auto-search', requireAuth, requireAdmin, async (req, res) => {

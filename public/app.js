@@ -19,10 +19,6 @@ let isMuted = false;
 let tmdbSelected = null;
 let tmdbDetail   = null;
 
-// Background upload state (persists across section navigation)
-const bgUpload = { active: false, pct: 0, filename: null, videoUrl: null, xhr: null };
-// Poster upload state
-const bgPoster = { active: false, url: null };
 
 // ── Persistent Playback ───────────────────────────────────────────────────────
 const RESUME_KEY = 'appinox_resume';
@@ -697,7 +693,6 @@ async function selectTmdb(result) {
     document.getElementById('f-poster-url').value = result.poster;
     const prev = document.getElementById('poster-preview-img');
     if (prev) { prev.src = result.poster; document.getElementById('poster-preview-wrap').style.display='flex'; }
-    document.getElementById('poster-upload-label').style.display='none';
   }
 
   showToast(`"${result.title}" sélectionné — champs pré-remplis`);
@@ -744,7 +739,6 @@ function fillFromTmdb(field) {
         document.getElementById('f-poster-url').value = tmdbSelected.poster;
         const prev = document.getElementById('poster-preview-img');
         if (prev) { prev.src = tmdbSelected.poster; document.getElementById('poster-preview-wrap').style.display='flex'; }
-        document.getElementById('poster-upload-label').style.display='none';
       }
       break;
     case 'actors':
@@ -794,133 +788,21 @@ function getActors() {
   })).filter(a => a.name);
 }
 
-// ── POSTER UPLOAD ─────────────────────────────────────────────────────────────
-function onPosterChosen(input) {
-  if (!input.files[0]) return;
-  const file  = input.files[0];
-  const label = document.getElementById('poster-upload-label');
-  const prog  = document.getElementById('poster-upload-progress');
-  const bar   = document.getElementById('poster-progress-bar');
-
-  label.style.display = 'none';
-  prog.style.display  = 'block';
-
-  const fd = new FormData();
-  fd.append('image', file);
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', '/api/admin/upload-image');
-  xhr.upload.onprogress = ev => { if (ev.lengthComputable) bar.style.width = Math.round(ev.loaded/ev.total*100)+'%'; };
-  xhr.onload = () => {
-    prog.style.display = 'none';
-    try {
-      const data = JSON.parse(xhr.responseText);
-      if (data.imageUrl) {
-        bgPoster.url = data.imageUrl;
-        document.getElementById('f-poster-url').value = data.imageUrl;
-        const prev = document.getElementById('poster-preview-img');
-        prev.src = data.imageUrl;
-        document.getElementById('poster-preview-wrap').style.display = 'flex';
-        showToast('Image uploadée');
-      }
-    } catch { label.style.display = 'flex'; }
-  };
-  xhr.onerror = () => { prog.style.display = 'none'; label.style.display = 'flex'; showToast('Erreur upload image', true); };
-  xhr.send(fd);
-
-  // Show local preview immediately
-  const reader = new FileReader();
-  reader.onload = e => {
-    const prev = document.getElementById('poster-preview-img');
-    prev.src = e.target.result;
-    document.getElementById('poster-preview-wrap').style.display = 'flex';
-  };
-  reader.readAsDataURL(file);
+// ── POSTER URL ────────────────────────────────────────────────────────────────
+function onPosterUrlInput(url) {
+  const prev = document.getElementById('poster-preview-img');
+  const wrap = document.getElementById('poster-preview-wrap');
+  if (url && url.startsWith('http')) {
+    prev.src = url;
+    wrap.style.display = 'flex';
+  } else {
+    wrap.style.display = 'none';
+  }
 }
 
 function removePoster() {
-  bgPoster.url = null;
   document.getElementById('f-poster-url').value = '';
   document.getElementById('poster-preview-wrap').style.display = 'none';
-  document.getElementById('poster-upload-label').style.display = 'flex';
-  const input = document.getElementById('f-poster');
-  if (input) input.value = '';
-  const tmdbUrl = document.getElementById('f-poster-url');
-  if (tmdbUrl) tmdbUrl.value = '';
-}
-
-// ── VIDEO BACKGROUND UPLOAD ───────────────────────────────────────────────────
-function onVideoFileChosen(input) {
-  const labelText = document.getElementById('video-file-label-text');
-  const label     = document.getElementById('video-upload-label');
-  const progWrap  = document.getElementById('video-upload-progress');
-  const progBar   = document.getElementById('video-progress-bar');
-  const progText  = document.getElementById('video-progress-text');
-  const globalInd = document.getElementById('global-upload-indicator');
-  const globalBar = document.getElementById('global-upload-bar');
-  const globalPct = document.getElementById('global-upload-pct');
-  const globalTxt = document.getElementById('global-upload-text');
-
-  if (!input.files[0]) return;
-  const file = input.files[0];
-  const mb   = (file.size / 1024 / 1024).toFixed(1);
-  if (labelText) labelText.textContent = `${file.name} (${mb} Mo)`;
-  if (label) label.classList.add('has-file');
-
-  // Reset previous upload
-  if (bgUpload.xhr) { bgUpload.xhr.abort(); }
-  bgUpload.active   = false;
-  bgUpload.filename = null;
-  bgUpload.videoUrl = null;
-  document.getElementById('f-video-url').value = '';
-
-  // Start background upload immediately
-  const fd = new FormData();
-  fd.append('video', file);
-  const xhr = new XMLHttpRequest();
-  bgUpload.xhr = xhr;
-  bgUpload.active = true;
-
-  progWrap.style.display  = 'block';
-  globalInd.style.display = 'flex';
-  if (globalTxt) globalTxt.textContent = `Upload : ${file.name}`;
-
-  xhr.open('POST', '/api/admin/upload-video');
-  xhr.upload.onprogress = ev => {
-    if (!ev.lengthComputable) return;
-    const pct = Math.round(ev.loaded / ev.total * 100);
-    bgUpload.pct = pct;
-    if (progBar)  progBar.style.width  = pct + '%';
-    if (progText) progText.textContent = `Upload : ${pct}% — ${(ev.loaded/1024/1024).toFixed(1)} / ${(ev.total/1024/1024).toFixed(1)} Mo`;
-    if (globalBar) globalBar.style.width = pct + '%';
-    if (globalPct) globalPct.textContent = pct + '%';
-  };
-  xhr.onload = () => {
-    bgUpload.active = false;
-    progWrap.style.display = 'none';
-    try {
-      const data = JSON.parse(xhr.responseText);
-      if (data.videoUrl) {
-        bgUpload.videoUrl = data.videoUrl;
-        bgUpload.filename = data.filename;
-        document.getElementById('f-video-url').value = data.videoUrl;
-        if (globalTxt) globalTxt.textContent = `Upload terminé : ${file.name}`;
-        if (globalPct) globalPct.textContent = '100%';
-        if (globalBar) globalBar.style.width = '100%';
-        showToast('Vidéo uploadée en arrière-plan');
-        setTimeout(() => { globalInd.style.display = 'none'; }, 3000);
-      }
-    } catch {
-      globalInd.style.display = 'none';
-      showToast('Erreur upload vidéo', true);
-    }
-  };
-  xhr.onerror = () => {
-    bgUpload.active = false;
-    progWrap.style.display  = 'none';
-    globalInd.style.display = 'none';
-    showToast('Erreur upload vidéo', true);
-  };
-  xhr.send(fd);
 }
 
 // ── SUBMIT FORM ───────────────────────────────────────────────────────────────
@@ -955,9 +837,9 @@ async function submitAddContent(e) {
   const desc2     = document.getElementById('f-desc').value.trim();
   const poster2   = document.getElementById('f-poster-url').value.trim();
   const warnings  = [];
-  if (!videoUrl2) warnings.push('Fichier vidéo non ajouté');
+  if (!videoUrl2) warnings.push('URL vidéo non renseignée');
   if (!desc2)     warnings.push('Description vide');
-  if (!poster2)   warnings.push('Affiche (poster) non définie');
+  if (!poster2)   warnings.push('URL affiche (poster) non renseignée');
   if (warnings.length && !window._ignoreWarnings) {
     errDiv.innerHTML = `<strong>Champs recommandés non remplis :</strong><br>• ${warnings.join('<br>• ')}<br><br><button type="button" onclick="window._ignoreWarnings=true;document.getElementById('form-submit-btn').click()" style="background:var(--grad);border:none;color:#fff;padding:7px 18px;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">Ajouter quand même</button>`;
     errDiv.classList.remove('hidden');
@@ -965,13 +847,6 @@ async function submitAddContent(e) {
     return;
   }
   window._ignoreWarnings = false;
-
-  // Wait if video is still uploading
-  if (bgUpload.active) {
-    errDiv.textContent = 'Upload vidéo en cours, veuillez patienter…';
-    errDiv.classList.remove('hidden');
-    return;
-  }
 
   btn.disabled = true; btnText.style.display = 'none'; spinner.style.display = 'block';
 
@@ -1036,12 +911,9 @@ async function deleteContent(id) {
 function resetForm() {
   document.getElementById('add-content-form').reset();
   document.getElementById('form-error').classList.add('hidden');
-  document.getElementById('video-file-label-text').textContent = 'Choisir un fichier vidéo (mp4, mkv, avi…)';
-  document.getElementById('video-upload-label').classList.remove('has-file');
   document.getElementById('f-video-url').value = '';
   document.getElementById('f-poster-url').value = '';
   document.getElementById('poster-preview-wrap').style.display = 'none';
-  document.getElementById('poster-upload-label').style.display = 'flex';
   document.getElementById('tmdb-results').innerHTML = '';
   document.getElementById('tmdb-input').value = '';
   document.getElementById('tmdb-status').textContent = '';
