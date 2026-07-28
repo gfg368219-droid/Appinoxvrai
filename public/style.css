@@ -252,10 +252,10 @@ button{cursor:pointer;border:none;background:none;}
 @keyframes modalIn{from{opacity:0;transform:scale(0.95);}to{opacity:1;transform:scale(1);}}
 .modal-backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(22px);}
 .modal-container{
-  position:relative;z-index:2;width:90vw;max-width:940px;border-radius:16px;
+  position:relative;z-index:2;width:94vw;max-width:1160px;border-radius:16px;
   background:var(--dark3);border:1px solid rgba(191,64,255,0.22);
   box-shadow:0 0 100px rgba(0,0,0,0.85),0 0 50px rgba(191,64,255,0.12);
-  overflow:hidden;max-height:94vh;overflow-y:auto;scrollbar-width:none;
+  overflow:hidden;max-height:96vh;overflow-y:auto;scrollbar-width:none;
 }
 .modal-container::-webkit-scrollbar{display:none;}
 .modal-close{
@@ -603,7 +603,8 @@ button{cursor:pointer;border:none;background:none;}
   .admin-stats-grid{grid-template-columns:1fr 1fr;}
   .modal-info{flex-direction:column;}
   .tmdb-result-card{width:100%;}
-  .modal-container{width:96vw;}
+  .modal-container{width:100vw;border-radius:12px;}
+  .modal-player{aspect-ratio:4/3;min-height:260px;}
   .modal-tabs{overflow-x:auto;scrollbar-width:none;}
   .modal-tabs::-webkit-scrollbar{display:none;}
   .modal-tab{white-space:nowrap;}
