@@ -10,7 +10,7 @@ const multer = require('multer');
 const pool = require('./db');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 const VIDEOS_DIR = path.join(__dirname, 'public', 'videos');
 const IMAGES_DIR = path.join(__dirname, 'public', 'images');
 fs.mkdirSync(VIDEOS_DIR, { recursive: true });
