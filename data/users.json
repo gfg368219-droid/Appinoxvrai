@@ -1,0 +1,14 @@
+[
+  {
+    "id": "4b898ff5-bbe7-4e44-96af-80b668d5df40",
+    "name": "Dylan Loïc",
+    "email": "dylanloic45@gmail.com",
+    "passwordHash": "$2b$10$1QZh5bbqxH6S8JnrR99B8.t5QosyevxEhTFJvbxVjlkyFAf.pD1C6",
+    "role": "user",
+    "createdAt": "2026-07-27T19:20:42.035Z",
+    "avatar": "D",
+    "watchlist": [],
+    "secretCode": "2024",
+    "firstLogin": false
+  }
+]

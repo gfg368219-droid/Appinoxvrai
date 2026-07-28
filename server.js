@@ -1,23 +1,20 @@
+'use strict';
 const express = require('express');
 const session = require('express-session');
+const PgSession = require('connect-pg-simple')(session);
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
+const pool = require('./db');
 
 const app = express();
 const PORT = 5000;
-const DATA_DIR   = path.join(__dirname, 'data');
-const USERS_FILE   = path.join(DATA_DIR, 'users.json');
-const CATALOG_FILE = path.join(DATA_DIR, 'catalog.json');
-const RATINGS_FILE = path.join(DATA_DIR, 'ratings.json');
-const PUBLIC_CATALOG = path.join(__dirname, 'public', 'data', 'catalog.json');
 const VIDEOS_DIR = path.join(__dirname, 'public', 'videos');
 const IMAGES_DIR = path.join(__dirname, 'public', 'images');
 fs.mkdirSync(VIDEOS_DIR, { recursive: true });
 fs.mkdirSync(IMAGES_DIR, { recursive: true });
-fs.mkdirSync(path.join(__dirname, 'public', 'data'), { recursive: true });
 
 // ── Multer: video ─────────────────────────────────────────────────────────────
 const videoStorage = multer.diskStorage({
@@ -52,40 +49,7 @@ const uploadImage = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function loadJSON(file, fallback = []) {
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return fallback; }
-}
-function saveJSON(file, data) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(data, null, 2));
-}
-function loadUsers()   { return loadJSON(USERS_FILE, []); }
-function saveUsers(u)  { saveJSON(USERS_FILE, u); }
-function loadCatalog() { return loadJSON(CATALOG_FILE, []); }
-function saveCatalog(c) {
-  saveJSON(CATALOG_FILE, c);
-  saveJSON(PUBLIC_CATALOG, c);
-}
-function loadRatings() { return loadJSON(RATINGS_FILE, {}); }
-function saveRatings(r) { saveJSON(RATINGS_FILE, r); }
-
-// Compute average ratings map { itemId -> { avg, count } }
-function computeAvgRatings() {
-  const raw = loadRatings();
-  const result = {};
-  for (const [itemId, votes] of Object.entries(raw)) {
-    const vals = Object.values(votes);
-    if (!vals.length) continue;
-    result[itemId] = {
-      avg: Math.round((vals.reduce((a,b) => a+b, 0) / vals.length) * 10) / 10,
-      count: vals.length,
-    };
-  }
-  return result;
-}
-
-// ── Admin account ─────────────────────────────────────────────────────────────
+// ── Admin account (hardcoded — not in DB) ─────────────────────────────────────
 const ADMIN = {
   id: 'admin-001',
   email: 'ysoeok@gmail.com',
@@ -96,10 +60,48 @@ const ADMIN = {
   avatar: 'A',
 };
 
+// ── DB helpers ────────────────────────────────────────────────────────────────
+function rowToCatalog(r) {
+  return {
+    id: r.id,
+    title: r.title,
+    genre: r.genre,
+    type: r.type,
+    duration: r.duration,
+    year: r.year,
+    audio: r.audio,
+    quality: r.quality,
+    description: r.description,
+    trailerUrl: r.trailer_url,
+    posterUrl: r.poster_url,
+    videoUrl: r.video_url,
+    actors: r.actors || [],
+    rows: r.rows || [],
+    addedAt: r.added_at,
+    communityRating: (r.community_avg != null)
+      ? { avg: parseFloat(r.community_avg), count: parseInt(r.community_count) || 0 }
+      : null,
+  };
+}
+
+async function getCatalogWithRatings() {
+  const { rows } = await pool.query(`
+    SELECT c.*,
+      ROUND(AVG(r.rating)::numeric, 1)::float AS community_avg,
+      COUNT(r.rating)::int                    AS community_count
+    FROM catalog c
+    LEFT JOIN ratings r ON r.item_id = c.id
+    GROUP BY c.id
+    ORDER BY c.added_at DESC
+  `);
+  return rows.map(rowToCatalog);
+}
+
 // ── Middleware ─────────────────────────────────────────────────────────────────
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(session({
+  store: new PgSession({ pool, tableName: 'session' }),
   secret: process.env.SESSION_SECRET || 'appinox-2026',
   resave: false,
   saveUninitialized: false,
@@ -123,7 +125,7 @@ app.use('/style.css', express.static(path.join(__dirname, 'public', 'style.css')
 app.use('/logo.png',  express.static(path.join(__dirname, 'public', 'logo.png')));
 
 // ── Auth pages ────────────────────────────────────────────────────────────────
-app.get('/login',    (req, res) => {
+app.get('/login', (req, res) => {
   if (req.session?.userId) return res.redirect('/');
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
@@ -137,81 +139,90 @@ app.get('/forgot-password', (req, res) => {
 });
 
 // ── API: Forgot password (public) ─────────────────────────────────────────────
-app.post('/api/forgot-password', (req, res) => {
-  const { email, secretCode, newPassword } = req.body;
-  if (!email || !secretCode || !newPassword)
-    return res.status(400).json({ error: 'Tous les champs sont requis' });
-  if (newPassword.length < 6)
-    return res.status(400).json({ error: 'Mot de passe trop court (min. 6 caractères)' });
-  const users = loadUsers();
-  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase().trim());
-  if (!user) return res.status(404).json({ error: 'Aucun compte avec cet email' });
-  if (!user.secretCode || user.secretCode.toLowerCase() !== secretCode.toLowerCase().trim())
-    return res.status(401).json({ error: 'Code secret incorrect' });
-  user.passwordHash = bcrypt.hashSync(newPassword, 10);
-  saveUsers(users);
-  res.json({ success: true });
+app.post('/api/forgot-password', async (req, res) => {
+  try {
+    const { email, secretCode, newPassword } = req.body;
+    if (!email || !secretCode || !newPassword)
+      return res.status(400).json({ error: 'Tous les champs sont requis' });
+    if (newPassword.length < 6)
+      return res.status(400).json({ error: 'Mot de passe trop court (min. 6 caractères)' });
+    const { rows } = await pool.query(
+      'SELECT * FROM users WHERE lower(email)=lower($1)', [email.trim()]
+    );
+    const user = rows[0];
+    if (!user) return res.status(404).json({ error: 'Aucun compte avec cet email' });
+    if (!user.secret_code || user.secret_code.toLowerCase() !== secretCode.toLowerCase().trim())
+      return res.status(401).json({ error: 'Code secret incorrect' });
+    await pool.query(
+      'UPDATE users SET password_hash=$1 WHERE id=$2',
+      [bcrypt.hashSync(newPassword, 10), user.id]
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── API: Login ────────────────────────────────────────────────────────────────
-app.post('/api/login', (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'Champs manquants' });
+app.post('/api/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ error: 'Champs manquants' });
 
-  if (email.toLowerCase() === ADMIN.email.toLowerCase()) {
-    if (!bcrypt.compareSync(password, ADMIN.passwordHash))
+    if (email.toLowerCase() === ADMIN.email.toLowerCase()) {
+      if (!bcrypt.compareSync(password, ADMIN.passwordHash))
+        return res.status(401).json({ error: 'Mot de passe incorrect' });
+      req.session.userId = ADMIN.id;
+      req.session.role   = 'admin';
+      req.session.name   = ADMIN.name;
+      req.session.email  = ADMIN.email;
+      return res.json({ success: true, role: 'admin', name: ADMIN.name });
+    }
+
+    const { rows } = await pool.query(
+      'SELECT * FROM users WHERE lower(email)=lower($1)', [email.trim()]
+    );
+    const user = rows[0];
+    if (!user) return res.status(401).json({ error: 'Aucun compte avec cet email' });
+    if (!bcrypt.compareSync(password, user.password_hash))
       return res.status(401).json({ error: 'Mot de passe incorrect' });
-    req.session.userId = ADMIN.id;
-    req.session.role   = 'admin';
-    req.session.name   = ADMIN.name;
-    req.session.email  = ADMIN.email;
-    return res.json({ success: true, role: 'admin', name: ADMIN.name });
-  }
 
-  const users = loadUsers();
-  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-  if (!user) return res.status(401).json({ error: 'Aucun compte avec cet email' });
-  if (!bcrypt.compareSync(password, user.passwordHash))
-    return res.status(401).json({ error: 'Mot de passe incorrect' });
-
-  req.session.userId = user.id;
-  req.session.role   = user.role || 'user';
-  req.session.name   = user.name;
-  req.session.email  = user.email;
-  // firstLogin: true if user has no secretCode yet
-  const needsCode = !user.secretCode;
-  res.json({ success: true, role: user.role || 'user', name: user.name, firstLogin: needsCode });
+    req.session.userId = user.id;
+    req.session.role   = user.role || 'user';
+    req.session.name   = user.name;
+    req.session.email  = user.email;
+    res.json({ success: true, role: user.role || 'user', name: user.name, firstLogin: !user.secret_code });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── API: Register ─────────────────────────────────────────────────────────────
-app.post('/api/register', (req, res) => {
-  const { name, email, password } = req.body;
-  if (!name || !email || !password) return res.status(400).json({ error: 'Tous les champs sont requis' });
-  if (password.length < 6) return res.status(400).json({ error: 'Mot de passe trop court (min. 6 caractères)' });
-  if (email.toLowerCase() === ADMIN.email.toLowerCase()) return res.status(400).json({ error: 'Email déjà utilisé' });
+app.post('/api/register', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password)
+      return res.status(400).json({ error: 'Tous les champs sont requis' });
+    if (password.length < 6)
+      return res.status(400).json({ error: 'Mot de passe trop court (min. 6 caractères)' });
+    if (email.toLowerCase() === ADMIN.email.toLowerCase())
+      return res.status(400).json({ error: 'Email déjà utilisé' });
 
-  const users = loadUsers();
-  if (users.find(u => u.email.toLowerCase() === email.toLowerCase()))
-    return res.status(400).json({ error: 'Email déjà utilisé' });
+    const { rows: dup } = await pool.query(
+      'SELECT id FROM users WHERE lower(email)=lower($1)', [email.trim()]
+    );
+    if (dup.length) return res.status(400).json({ error: 'Email déjà utilisé' });
 
-  const newUser = {
-    id: uuidv4(), name: name.trim(),
-    email: email.toLowerCase().trim(),
-    passwordHash: bcrypt.hashSync(password, 10),
-    role: 'user', createdAt: new Date().toISOString(),
-    avatar: name.trim()[0].toUpperCase(),
-    watchlist: [],
-    secretCode: null,
-    firstLogin: true,
-  };
-  users.push(newUser);
-  saveUsers(users);
+    const id = uuidv4();
+    await pool.query(
+      `INSERT INTO users (id, name, email, password_hash, role, avatar, watchlist, secret_code, first_login)
+       VALUES ($1,$2,$3,$4,'user',$5,'[]'::jsonb,NULL,true)`,
+      [id, name.trim(), email.toLowerCase().trim(),
+       bcrypt.hashSync(password, 10), name.trim()[0].toUpperCase()]
+    );
 
-  req.session.userId = newUser.id;
-  req.session.role   = 'user';
-  req.session.name   = newUser.name;
-  req.session.email  = newUser.email;
-  res.json({ success: true, name: newUser.name, firstLogin: true });
+    req.session.userId = id;
+    req.session.role   = 'user';
+    req.session.name   = name.trim();
+    req.session.email  = email.toLowerCase().trim();
+    res.json({ success: true, name: name.trim(), firstLogin: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── API: Logout ───────────────────────────────────────────────────────────────
@@ -220,133 +231,186 @@ app.post('/api/logout', (req, res) => {
 });
 
 // ── API: Me ───────────────────────────────────────────────────────────────────
-app.get('/api/me', requireAuth, (req, res) => {
-  let firstLogin = false;
-  if (req.session.userId !== ADMIN.id) {
-    const user = loadUsers().find(u => u.id === req.session.userId);
-    firstLogin = !user?.secretCode;
-  }
-  res.json({
-    id: req.session.userId, name: req.session.name,
-    email: req.session.email, role: req.session.role,
-    avatar: req.session.name?.[0]?.toUpperCase() || 'U',
-    firstLogin,
-  });
+app.get('/api/me', requireAuth, async (req, res) => {
+  try {
+    let firstLogin = false;
+    if (req.session.userId !== ADMIN.id) {
+      const { rows } = await pool.query(
+        'SELECT secret_code FROM users WHERE id=$1', [req.session.userId]
+      );
+      firstLogin = !rows[0]?.secret_code;
+    }
+    res.json({
+      id:        req.session.userId,
+      name:      req.session.name,
+      email:     req.session.email,
+      role:      req.session.role,
+      avatar:    req.session.name?.[0]?.toUpperCase() || 'U',
+      firstLogin,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── API: Secret code management ───────────────────────────────────────────────
-app.post('/api/set-secret-code', requireAuth, (req, res) => {
-  if (req.session.userId === ADMIN.id) return res.status(403).json({ error: 'Non applicable' });
+app.post('/api/set-secret-code', requireAuth, async (req, res) => {
+  if (req.session.userId === ADMIN.id)
+    return res.status(403).json({ error: 'Non applicable' });
   const { code } = req.body;
   if (!code || code.trim().length < 3)
     return res.status(400).json({ error: 'Code trop court (min. 3 caractères)' });
-  const users = loadUsers();
-  const user = users.find(u => u.id === req.session.userId);
-  if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
-  user.secretCode = code.trim();
-  user.firstLogin = false;
-  saveUsers(users);
-  res.json({ success: true });
+  try {
+    await pool.query(
+      'UPDATE users SET secret_code=$1, first_login=false WHERE id=$2',
+      [code.trim(), req.session.userId]
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get('/api/my-code', requireAuth, (req, res) => {
+app.get('/api/my-code', requireAuth, async (req, res) => {
   if (req.session.userId === ADMIN.id) return res.json({ code: null });
-  const user = loadUsers().find(u => u.id === req.session.userId);
-  res.json({ code: user?.secretCode || null });
+  try {
+    const { rows } = await pool.query(
+      'SELECT secret_code FROM users WHERE id=$1', [req.session.userId]
+    );
+    res.json({ code: rows[0]?.secret_code || null });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/verify-secret-code', requireAuth, (req, res) => {
+app.post('/api/verify-secret-code', requireAuth, async (req, res) => {
   if (req.session.userId === ADMIN.id) return res.json({ valid: true });
-  const { code } = req.body;
-  const user = loadUsers().find(u => u.id === req.session.userId);
-  if (!user || !user.secretCode) return res.json({ valid: false });
-  const valid = user.secretCode.toLowerCase() === (code || '').toLowerCase().trim();
-  res.json({ valid });
+  try {
+    const { rows } = await pool.query(
+      'SELECT secret_code FROM users WHERE id=$1', [req.session.userId]
+    );
+    const user = rows[0];
+    if (!user || !user.secret_code) return res.json({ valid: false });
+    res.json({ valid: user.secret_code.toLowerCase() === (req.body.code || '').toLowerCase().trim() });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── API: Catalog ──────────────────────────────────────────────────────────────
-app.get('/api/catalog', requireAuth, (req, res) => {
-  const catalog = loadCatalog();
-  const avgRatings = computeAvgRatings();
-  const result = catalog.map(item => ({
-    ...item,
-    communityRating: avgRatings[item.id] || null,
-  }));
-  res.json(result);
+app.get('/api/catalog', requireAuth, async (req, res) => {
+  try {
+    res.json(await getCatalogWithRatings());
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── API: Ratings ──────────────────────────────────────────────────────────────
-app.get('/api/ratings', requireAuth, (req, res) => {
-  res.json(computeAvgRatings());
+app.get('/api/ratings', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT item_id,
+        ROUND(AVG(rating)::numeric, 1)::float AS avg,
+        COUNT(*)::int                          AS count
+      FROM ratings GROUP BY item_id
+    `);
+    const result = {};
+    rows.forEach(r => { result[r.item_id] = { avg: r.avg, count: r.count }; });
+    res.json(result);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get('/api/rating/:id', requireAuth, (req, res) => {
-  const ratings = loadRatings();
-  const itemRatings = ratings[req.params.id] || {};
-  const myRating = itemRatings[req.session.userId] || 0;
-  const vals = Object.values(itemRatings);
-  const avg  = vals.length ? Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*10)/10 : 0;
-  res.json({ myRating, avg, count: vals.length });
+app.get('/api/rating/:id', requireAuth, async (req, res) => {
+  try {
+    const itemId = req.params.id;
+    const userId = req.session.userId;
+    const [myRow, aggRow] = await Promise.all([
+      pool.query('SELECT rating FROM ratings WHERE item_id=$1 AND user_id=$2', [itemId, userId]),
+      pool.query(
+        'SELECT ROUND(AVG(rating)::numeric,1)::float AS avg, COUNT(*)::int AS count FROM ratings WHERE item_id=$1',
+        [itemId]
+      ),
+    ]);
+    res.json({
+      myRating: parseFloat(myRow.rows[0]?.rating) || 0,
+      avg:      parseFloat(aggRow.rows[0]?.avg)   || 0,
+      count:    parseInt(aggRow.rows[0]?.count)   || 0,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/rating/:id', requireAuth, (req, res) => {
-  const { rating } = req.body;
-  const r = parseFloat(rating);
-  if (isNaN(r) || r < 1 || r > 5) return res.status(400).json({ error: 'Note invalide (1-5)' });
-
-  const ratings = loadRatings();
-  if (!ratings[req.params.id]) ratings[req.params.id] = {};
-  ratings[req.params.id][req.session.userId] = r;
-  saveRatings(ratings);
-
-  const vals = Object.values(ratings[req.params.id]);
-  const avg  = Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*10)/10;
-  res.json({ success: true, avg, count: vals.length, myRating: r });
+app.post('/api/rating/:id', requireAuth, async (req, res) => {
+  try {
+    const r = parseFloat(req.body.rating);
+    if (isNaN(r) || r < 1 || r > 5)
+      return res.status(400).json({ error: 'Note invalide (1-5)' });
+    const itemId = req.params.id;
+    const userId = req.session.userId;
+    await pool.query(
+      `INSERT INTO ratings (item_id, user_id, rating) VALUES ($1,$2,$3)
+       ON CONFLICT (item_id, user_id) DO UPDATE SET rating = EXCLUDED.rating`,
+      [itemId, userId, r]
+    );
+    const { rows } = await pool.query(
+      'SELECT ROUND(AVG(rating)::numeric,1)::float AS avg, COUNT(*)::int AS count FROM ratings WHERE item_id=$1',
+      [itemId]
+    );
+    res.json({ success: true, avg: parseFloat(rows[0].avg), count: parseInt(rows[0].count), myRating: r });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── API: Search ───────────────────────────────────────────────────────────────
-app.get('/api/search', requireAuth, (req, res) => {
-  const q = (req.query.q || '').toLowerCase().trim();
-  if (!q) return res.json({ results: [] });
-  const catalog = loadCatalog();
-  const results = catalog.filter(c =>
-    c.title.toLowerCase().includes(q) ||
-    c.genre.toLowerCase().includes(q) ||
-    (c.description || '').toLowerCase().includes(q) ||
-    (c.audio || '').toLowerCase().includes(q) ||
-    (c.type || '').toLowerCase().includes(q)
-  );
-  res.json({ results: results.slice(0, 30) });
+app.get('/api/search', requireAuth, async (req, res) => {
+  try {
+    const q = (req.query.q || '').trim();
+    if (!q) return res.json({ results: [] });
+    const { rows } = await pool.query(`
+      SELECT * FROM catalog
+      WHERE lower(title)       LIKE lower('%' || $1 || '%')
+         OR lower(genre)       LIKE lower('%' || $1 || '%')
+         OR lower(description) LIKE lower('%' || $1 || '%')
+         OR lower(audio)       LIKE lower('%' || $1 || '%')
+         OR lower(type)        LIKE lower('%' || $1 || '%')
+      ORDER BY added_at DESC LIMIT 30
+    `, [q]);
+    res.json({ results: rows.map(r => rowToCatalog(r)) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── API: Watchlist ────────────────────────────────────────────────────────────
-app.get('/api/watchlist', requireAuth, (req, res) => {
+app.get('/api/watchlist', requireAuth, async (req, res) => {
   if (req.session.userId === ADMIN.id) return res.json({ watchlist: [] });
-  const user = loadUsers().find(u => u.id === req.session.userId);
-  res.json({ watchlist: user?.watchlist || [] });
+  try {
+    const { rows } = await pool.query(
+      'SELECT watchlist FROM users WHERE id=$1', [req.session.userId]
+    );
+    res.json({ watchlist: rows[0]?.watchlist || [] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/watchlist/:id', requireAuth, (req, res) => {
+app.post('/api/watchlist/:id', requireAuth, async (req, res) => {
   if (req.session.userId === ADMIN.id) return res.json({ success: true, inList: false });
-  const users = loadUsers();
-  const user = users.find(u => u.id === req.session.userId);
-  if (!user) return res.status(404).json({ error: 'Utilisateur non trouvé' });
-  if (!Array.isArray(user.watchlist)) user.watchlist = [];
-  const id = req.params.id;
-  const idx = user.watchlist.indexOf(id);
-  if (idx === -1) user.watchlist.push(id);
-  else user.watchlist.splice(idx, 1);
-  saveUsers(users);
-  res.json({ success: true, inList: idx === -1 });
+  try {
+    const { rows } = await pool.query(
+      'SELECT watchlist FROM users WHERE id=$1', [req.session.userId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Utilisateur non trouvé' });
+    const wl  = rows[0].watchlist || [];
+    const id  = req.params.id;
+    const idx = wl.indexOf(id);
+    if (idx === -1) wl.push(id); else wl.splice(idx, 1);
+    await pool.query(
+      'UPDATE users SET watchlist=$1 WHERE id=$2',
+      [JSON.stringify(wl), req.session.userId]
+    );
+    res.json({ success: true, inList: idx === -1 });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── API: Admin — Users ────────────────────────────────────────────────────────
-app.get('/api/admin/users', requireAuth, requireAdmin, (req, res) => {
-  const users = loadUsers().map(({ passwordHash, ...u }) => u);
-  res.json({ users, total: users.length + 1 });
+app.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, email, role, avatar,
+              created_at AS "createdAt", first_login AS "firstLogin"
+       FROM users ORDER BY created_at DESC`
+    );
+    res.json({ users: rows, total: rows.length + 1 }); // +1 for hardcoded admin
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── API: Admin — Standalone video upload (background) ────────────────────────
+// ── API: Admin — Standalone video upload ──────────────────────────────────────
 app.post('/api/admin/upload-video', requireAuth, requireAdmin, uploadVideo.single('video'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Aucun fichier vidéo reçu' });
   res.json({ success: true, filename: req.file.filename, videoUrl: '/videos/' + req.file.filename });
@@ -358,20 +422,17 @@ app.post('/api/admin/upload-image', requireAuth, requireAdmin, uploadImage.singl
   res.json({ success: true, filename: req.file.filename, imageUrl: '/images/' + req.file.filename });
 });
 
-// ── API: Admin — Auto Search (TVmaze pour séries, iTunes pour films) ──────────
+// ── API: Admin — Auto Search (TVmaze + iTunes) ────────────────────────────────
 app.get('/api/admin/auto-search', requireAuth, requireAdmin, async (req, res) => {
   const q = (req.query.q || '').trim();
   if (!q) return res.json({ results: [] });
   try {
     const headers = { 'User-Agent': 'APPINOX/1.0' };
-
-    // Fetch movies from iTunes + series from TVmaze (both free, no key)
     const [moviesRes, tvRes] = await Promise.all([
       fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(q)}&media=movie&entity=movie&limit=10&country=fr`, { headers }),
       fetch(`https://api.tvmaze.com/search/shows?q=${encodeURIComponent(q)}`, { headers }),
     ]);
     const [moviesData, tvData] = await Promise.all([moviesRes.json(), tvRes.json()]);
-
     const seen = new Set();
 
     function mapMovie(x) {
@@ -381,8 +442,7 @@ app.get('/api/admin/auto-search', requireAuth, requireAdmin, async (req, res) =>
       seen.add(key);
       return {
         itunesId: 'itunes:' + String(x.trackId || x.collectionId),
-        title,
-        type: 'film',
+        title, type: 'film',
         year: (x.releaseDate || '').slice(0, 4),
         overview: x.longDescription || x.description || '',
         poster: (x.artworkUrl100 || '').replace('100x100bb', '600x600bb') || null,
@@ -400,8 +460,7 @@ app.get('/api/admin/auto-search', requireAuth, requireAdmin, async (req, res) =>
       const runtime = show.averageRuntime || show.runtime || null;
       return {
         itunesId: 'tvmaze:' + String(show.id),
-        title,
-        type: 'serie',
+        title, type: 'serie',
         year: (show.premiered || show.ended || '').slice(0, 4),
         overview: (show.summary || '').replace(/<[^>]*>/g, ''),
         poster: show.image?.original || show.image?.medium || null,
@@ -412,27 +471,22 @@ app.get('/api/admin/auto-search', requireAuth, requireAdmin, async (req, res) =>
 
     const movies = (moviesData.results || []).map(mapMovie).filter(Boolean);
     const tv     = (Array.isArray(tvData) ? tvData : []).map(mapTV).filter(Boolean);
-
-    // Interleave films and series so both appear in results
     const results = [];
     const max = Math.max(movies.length, tv.length);
     for (let i = 0; i < max && results.length < 10; i++) {
       if (movies[i]) results.push(movies[i]);
       if (tv[i] && results.length < 10) results.push(tv[i]);
     }
-
     res.json({ results });
   } catch (err) {
     res.status(500).json({ error: 'Erreur de recherche: ' + err.message });
   }
 });
 
-// ── API: Admin — Auto Detail (iTunes ou TVmaze selon préfixe) ─────────────────
+// ── API: Admin — Auto Detail ──────────────────────────────────────────────────
 app.get('/api/admin/auto-detail/:id', requireAuth, requireAdmin, async (req, res) => {
   try {
     const raw = req.params.id;
-
-    // TVmaze detail
     if (raw.startsWith('tvmaze:')) {
       const tvId = raw.slice(7);
       const r = await fetch(`https://api.tvmaze.com/shows/${encodeURIComponent(tvId)}`, {
@@ -443,13 +497,8 @@ app.get('/api/admin/auto-detail/:id', requireAuth, requireAdmin, async (req, res
       const runtimeStr = runtime
         ? (runtime >= 60 ? `${Math.floor(runtime / 60)}h ${runtime % 60}min` : `${runtime}min`)
         : null;
-      return res.json({
-        genre: (show.genres || [])[0] || '',
-        runtime: runtimeStr,
-      });
+      return res.json({ genre: (show.genres || [])[0] || '', runtime: runtimeStr });
     }
-
-    // iTunes detail (fallback)
     const itunesId = raw.startsWith('itunes:') ? raw.slice(7) : raw;
     const r = await fetch(`https://itunes.apple.com/lookup?id=${encodeURIComponent(itunesId)}`, {
       headers: { 'User-Agent': 'APPINOX/1.0' },
@@ -457,86 +506,172 @@ app.get('/api/admin/auto-detail/:id', requireAuth, requireAdmin, async (req, res
     const data = await r.json();
     const item = (data.results || [])[0];
     if (!item) return res.json({});
-    const genre = item.primaryGenreName || '';
     const durationMs = item.trackTimeMillis || null;
     let runtime = null;
     if (durationMs) {
       const mins = Math.round(durationMs / 60000);
       runtime = mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}min` : `${mins}min`;
     }
-    res.json({ genre, runtime });
+    res.json({ genre: item.primaryGenreName || '', runtime });
   } catch (err) {
     res.status(500).json({ error: 'Erreur détail' });
   }
 });
 
 // ── API: Admin — Add content ──────────────────────────────────────────────────
-app.post('/api/admin/content', requireAuth, requireAdmin, uploadImage.none(), (req, res) => {
-  const { title, genre, type, duration, year, audio, quality, description, trailerUrl, posterUrl, videoUrl } = req.body;
-  let { rows, actors } = req.body;
+app.post('/api/admin/content', requireAuth, requireAdmin, uploadImage.none(), async (req, res) => {
+  try {
+    const { title, genre, type, duration, year, audio, quality,
+            description, trailerUrl, posterUrl, videoUrl } = req.body;
+    let { rows, actors } = req.body;
 
-  if (!title || !genre || !type || !audio)
-    return res.status(400).json({ error: 'Titre, genre, type et audio sont obligatoires' });
+    if (!title || !genre || !type || !audio)
+      return res.status(400).json({ error: 'Titre, genre, type et audio sont obligatoires' });
 
-  let parsedActors = [];
-  if (actors) {
-    try { parsedActors = typeof actors === 'string' ? JSON.parse(actors) : actors; } catch {}
-  }
+    let parsedActors = [];
+    if (actors) {
+      try { parsedActors = typeof actors === 'string' ? JSON.parse(actors) : actors; } catch {}
+    }
+    const parsedRows = Array.isArray(rows) ? rows : (rows ? [rows] : []);
 
-  const catalog = loadCatalog();
-  const newItem = {
-    id:          'c-' + uuidv4().slice(0, 8),
-    title:       title.trim(),
-    genre:       genre.trim(),
-    type,
-    duration:    duration?.trim() || null,
-    year:        parseInt(year) || new Date().getFullYear(),
-    audio,
-    quality:     quality || null,
-    description: (description || '').trim(),
-    trailerUrl:  trailerUrl?.trim() || null,
-    posterUrl:   posterUrl?.trim() || null,
-    videoUrl:    videoUrl?.trim() || null,
-    actors:      parsedActors,
-    rows:        Array.isArray(rows) ? rows : (rows ? [rows] : []),
-    addedAt:     new Date().toISOString(),
-  };
-
-  catalog.unshift(newItem);
-  saveCatalog(catalog);
-  res.json({ success: true, item: newItem, catalog });
+    const id = 'c-' + uuidv4().slice(0, 8);
+    await pool.query(
+      `INSERT INTO catalog
+         (id, title, genre, type, duration, year, audio, quality, description,
+          trailer_url, poster_url, video_url, actors, rows)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+      [
+        id, title.trim(), genre.trim(), type,
+        duration?.trim() || null,
+        parseInt(year) || new Date().getFullYear(),
+        audio, quality || null, (description || '').trim(),
+        trailerUrl?.trim() || null, posterUrl?.trim() || null, videoUrl?.trim() || null,
+        JSON.stringify(parsedActors), JSON.stringify(parsedRows),
+      ]
+    );
+    const catalog = await getCatalogWithRatings();
+    res.json({ success: true, item: catalog.find(c => c.id === id), catalog });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── API: Admin — Edit content ─────────────────────────────────────────────────
-app.patch('/api/admin/content/:id', requireAuth, requireAdmin, (req, res) => {
-  const catalog = loadCatalog();
-  const idx = catalog.findIndex(c => c.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Contenu non trouvé' });
-  const { rows, ...rest } = req.body;
-  catalog[idx] = { ...catalog[idx], ...rest };
-  if (rows !== undefined) catalog[idx].rows = Array.isArray(rows) ? rows : (rows ? [rows] : []);
-  saveCatalog(catalog);
-  res.json({ success: true, item: catalog[idx], catalog });
+app.patch('/api/admin/content/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows: existingRows } = await pool.query(
+      'SELECT * FROM catalog WHERE id=$1', [req.params.id]
+    );
+
+    if (!existingRows.length) return res.status(404).json({ error: 'Contenu non trouvé' });
+    const cur = existingRows[0];
+
+    const { rows: updRows, actors: updActors, ...rest } = req.body;
+
+    const parsedRows = updRows !== undefined
+      ? (Array.isArray(updRows) ? updRows : (updRows ? [updRows] : []))
+      : (cur.rows || []);
+
+    let parsedActors = cur.actors || [];
+    if (updActors !== undefined) {
+      try { parsedActors = typeof updActors === 'string' ? JSON.parse(updActors) : updActors; } catch {}
+    }
+
+    await pool.query(
+      `UPDATE catalog SET
+         title=$1, genre=$2, type=$3, duration=$4, year=$5, audio=$6, quality=$7,
+         description=$8, trailer_url=$9, poster_url=$10, video_url=$11,
+         actors=$12, rows=$13
+       WHERE id=$14`,
+      [
+        rest.title       ?? cur.title,
+        rest.genre       ?? cur.genre,
+        rest.type        ?? cur.type,
+        rest.duration    ?? cur.duration,
+        rest.year !== undefined ? (parseInt(rest.year) || cur.year) : cur.year,
+        rest.audio       ?? cur.audio,
+        rest.quality     ?? cur.quality,
+        rest.description ?? cur.description,
+        rest.trailerUrl  ?? cur.trailer_url,
+        rest.posterUrl   ?? cur.poster_url,
+        rest.videoUrl    ?? cur.video_url,
+        JSON.stringify(parsedActors),
+        JSON.stringify(parsedRows),
+        req.params.id,
+      ]
+    );
+    const catalog = await getCatalogWithRatings();
+    res.json({ success: true, item: catalog.find(c => c.id === req.params.id), catalog });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── API: Admin — Delete content ───────────────────────────────────────────────
-app.delete('/api/admin/content/:id', requireAuth, requireAdmin, (req, res) => {
-  let catalog = loadCatalog();
-  const item = catalog.find(c => c.id === req.params.id);
-  if (!item) return res.status(404).json({ error: 'Contenu non trouvé' });
-  if (item.videoUrl && item.videoUrl.startsWith('/videos/')) {
-    try { fs.unlinkSync(path.join(__dirname, 'public', item.videoUrl)); } catch {}
-  }
-  if (item.posterUrl && item.posterUrl.startsWith('/images/')) {
-    try { fs.unlinkSync(path.join(__dirname, 'public', item.posterUrl)); } catch {}
-  }
-  catalog = catalog.filter(c => c.id !== req.params.id);
-  saveCatalog(catalog);
-  // Also remove ratings for this item
-  const ratings = loadRatings();
-  delete ratings[req.params.id];
-  saveRatings(ratings);
-  res.json({ success: true, catalog });
+app.delete('/api/admin/content/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows: existing } = await pool.query(
+      'SELECT * FROM catalog WHERE id=$1', [req.params.id]
+    );
+    if (!existing.length) return res.status(404).json({ error: 'Contenu non trouvé' });
+    const item = existing[0];
+    if (item.video_url?.startsWith('/videos/')) {
+      try { fs.unlinkSync(path.join(__dirname, 'public', item.video_url)); } catch {}
+    }
+    if (item.poster_url?.startsWith('/images/')) {
+      try { fs.unlinkSync(path.join(__dirname, 'public', item.poster_url)); } catch {}
+    }
+    await pool.query('DELETE FROM ratings WHERE item_id=$1', [req.params.id]);
+    await pool.query('DELETE FROM catalog WHERE id=$1', [req.params.id]);
+    const catalog = await getCatalogWithRatings();
+    res.json({ success: true, catalog });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── API: Suggestions ──────────────────────────────────────────────────────────
+app.post('/api/suggestions', requireAuth, async (req, res) => {
+  if (req.session.userId === ADMIN.id)
+    return res.status(403).json({ error: 'Les admins ne peuvent pas faire de suggestions' });
+  try {
+    const { title, type, preferredVersion, note } = req.body;
+    if (!title?.trim() || !preferredVersion)
+      return res.status(400).json({ error: 'Titre et version audio sont requis' });
+    const id = 's-' + uuidv4().slice(0, 8);
+    await pool.query(
+      `INSERT INTO suggestions (id, user_id, user_name, title, type, preferred_version, note)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [id, req.session.userId, req.session.name,
+       title.trim(), type || '', preferredVersion, (note || '').trim()]
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/suggestions', requireAuth, async (req, res) => {
+  try {
+    const q = req.session.role === 'admin'
+      ? 'SELECT * FROM suggestions ORDER BY created_at DESC'
+      : 'SELECT * FROM suggestions WHERE user_id=$1 ORDER BY created_at DESC';
+    const params = req.session.role === 'admin' ? [] : [req.session.userId];
+    const { rows } = await pool.query(q, params);
+    res.json({ suggestions: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/admin/suggestions/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { status, adminNote } = req.body;
+    if (!['approved', 'rejected', 'pending'].includes(status))
+      return res.status(400).json({ error: 'Statut invalide' });
+    await pool.query(
+      'UPDATE suggestions SET status=$1, admin_note=$2 WHERE id=$3',
+      [status, adminNote || '', req.params.id]
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/admin/suggestions/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM suggestions WHERE id=$1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Protected static ──────────────────────────────────────────────────────────

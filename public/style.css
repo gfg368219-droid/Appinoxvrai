@@ -546,6 +546,51 @@ button{cursor:pointer;border:none;background:none;}
 }
 .sc-btn-secondary:hover{background:rgba(255,255,255,0.1);color:#fff;}
 
+/* ── SUGGESTION MODAL ────────────────────────────────────────────────────── */
+.sc-box-wide{max-width:480px;width:92vw;}
+.suggest-field{width:100%;margin-bottom:14px;text-align:left;}
+.suggest-label{
+  display:block;font-size:11px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:6px;
+}
+.sc-select{
+  width:100%;padding:12px 14px;background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.12);border-radius:10px;
+  color:#fff;font-family:'Exo 2',sans-serif;font-size:14px;
+  outline:none;cursor:pointer;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;
+  transition:border-color 0.2s;
+}
+.sc-select:focus{border-color:rgba(0,212,255,0.5);}
+.sc-select option{background:#1a1a2e;color:#fff;}
+.suggest-success{
+  width:100%;padding:12px 16px;background:rgba(0,212,255,0.1);
+  border:1px solid rgba(0,212,255,0.3);border-radius:10px;
+  color:#00d4ff;font-size:14px;font-weight:600;text-align:center;
+  margin-bottom:14px;
+}
+
+/* ── ADMIN SUGGESTION TABLE ──────────────────────────────────────────────── */
+.status-badge{
+  display:inline-block;padding:3px 10px;border-radius:20px;
+  font-size:11px;font-weight:700;letter-spacing:.04em;
+}
+.status-pending { background:rgba(255,200,0,0.15); color:#ffc800; border:1px solid rgba(255,200,0,0.3);}
+.status-approved{ background:rgba(0,212,100,0.15); color:#00d464; border:1px solid rgba(0,212,100,0.3);}
+.status-rejected{ background:rgba(255,45,120,0.15); color:#ff2d78; border:1px solid rgba(255,45,120,0.3);}
+.btn-approve{
+  padding:4px 10px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;
+  background:rgba(0,212,100,0.15);color:#00d464;transition:background 0.15s;margin-right:4px;
+}
+.btn-approve:hover{background:rgba(0,212,100,0.3);}
+.btn-reject{
+  padding:4px 10px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;
+  background:rgba(255,45,120,0.15);color:#ff2d78;transition:background 0.15s;margin-right:4px;
+}
+.btn-reject:hover{background:rgba(255,45,120,0.3);}
+.sug-actions{white-space:nowrap;}
+
 @media(max-width:768px){
   #navbar{padding:0 18px;}
   .nav-links{display:none;}

@@ -285,6 +285,8 @@ async function initApp() {
     // Hide "Mon Code Secret" menu item for admin
     const codeBtn = document.getElementById('code-btn');
     if (codeBtn) codeBtn.style.display = currentUser.role === 'admin' ? 'none' : 'flex';
+    const suggestBtn = document.getElementById('suggest-btn');
+    if (suggestBtn) suggestBtn.style.display = currentUser.role === 'admin' ? 'none' : 'flex';
 
     // First login: prompt user to create their secret code
     if (currentUser.firstLogin && currentUser.role !== 'admin') {
@@ -570,7 +572,7 @@ function showSection(name, linkEl) {
   document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
   if (linkEl) linkEl.classList.add('active');
   if (name === 'mylist') renderMyList();
-  if (name === 'admin')  loadAdminData();
+  if (name === 'admin')  { loadAdminData(); loadAdminSuggestions(); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1567,6 +1569,128 @@ function showToast(msg, isError = false) {
   t.classList.remove('hidden');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.add('hidden'), 2800);
+}
+
+// ── SUGGESTIONS ───────────────────────────────────────────────────────────────
+function showSuggestModal() {
+  document.getElementById('suggest-modal').style.display = 'flex';
+  document.getElementById('suggest-error').style.display = 'none';
+  document.getElementById('suggest-success').style.display = 'none';
+  document.getElementById('suggest-form').reset();
+}
+function closeSuggestModal() {
+  document.getElementById('suggest-modal').style.display = 'none';
+}
+
+async function submitSuggestion(e) {
+  e.preventDefault();
+  const errEl     = document.getElementById('suggest-error');
+  const successEl = document.getElementById('suggest-success');
+  const btn       = document.getElementById('sug-submit-btn');
+  const btnText   = document.getElementById('sug-btn-text');
+  const spinner   = document.getElementById('sug-spinner');
+  errEl.style.display = 'none';
+  successEl.style.display = 'none';
+
+  const title            = document.getElementById('sug-title').value.trim();
+  const type             = document.getElementById('sug-type').value;
+  const preferredVersion = document.getElementById('sug-version').value;
+  const note             = document.getElementById('sug-note').value.trim();
+
+  if (!title || !preferredVersion) {
+    errEl.textContent = 'Veuillez renseigner le titre et la version audio souhaitée.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true; btnText.style.display = 'none'; spinner.style.display = 'block';
+  try {
+    const res  = await fetch('/api/suggestions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, type, preferredVersion, note }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erreur');
+    successEl.style.display = 'block';
+    document.getElementById('suggest-form').reset();
+    showToast('Suggestion envoyée !');
+    setTimeout(() => closeSuggestModal(), 2400);
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btnText.style.display = 'block'; spinner.style.display = 'none';
+  }
+}
+
+// ── ADMIN SUGGESTIONS ─────────────────────────────────────────────────────────
+async function loadAdminSuggestions() {
+  const wrap = document.getElementById('admin-suggestions-list');
+  if (!wrap) return;
+  try {
+    const res  = await fetch('/api/suggestions');
+    const data = await res.json();
+    const suggestions = data.suggestions || [];
+    const pending = suggestions.filter(s => s.status === 'pending').length;
+    const statEl = document.getElementById('stat-suggestions');
+    if (statEl) statEl.textContent = pending;
+    renderSuggestionsTable(suggestions, wrap);
+  } catch (e) { console.error(e); }
+}
+
+function renderSuggestionsTable(suggestions, wrap) {
+  if (!suggestions.length) {
+    wrap.innerHTML = '<p style="color:var(--text-dim);padding:16px;font-size:13px">Aucune suggestion reçue.</p>';
+    return;
+  }
+  const statusLabel = { pending: 'En attente', approved: 'Approuvée', rejected: 'Rejetée' };
+  const statusClass = { pending: 'status-pending', approved: 'status-approved', rejected: 'status-rejected' };
+  wrap.innerHTML = `<table class="admin-table">
+    <thead><tr>
+      <th>Utilisateur</th><th>Titre</th><th>Type</th>
+      <th>Version</th><th>Remarque</th><th>Date</th><th>Statut</th><th>Actions</th>
+    </tr></thead>
+    <tbody>${suggestions.map(s => `
+      <tr>
+        <td><div class="user-cell"><div class="user-av">${(s.user_name||'?')[0].toUpperCase()}</div>${s.user_name}</div></td>
+        <td><strong style="color:#fff">${s.title}</strong></td>
+        <td>${s.type || '—'}</td>
+        <td><span class="audio-tag">${s.preferred_version}</span></td>
+        <td style="max-width:130px;font-size:11px;color:var(--text-dim)">${s.note || '—'}</td>
+        <td style="font-size:11px;color:var(--text-dim)">${new Date(s.created_at).toLocaleDateString('fr-FR')}</td>
+        <td><span class="status-badge ${statusClass[s.status]||'status-pending'}">${statusLabel[s.status]||s.status}</span></td>
+        <td class="sug-actions">
+          ${s.status !== 'approved' ? `<button class="btn-approve" title="Approuver" onclick="adminActionSuggestion('${s.id}','approved')">✓</button>` : ''}
+          ${s.status !== 'rejected' ? `<button class="btn-reject"  title="Rejeter"   onclick="adminActionSuggestion('${s.id}','rejected')">✗</button>` : ''}
+          <button class="btn-delete" onclick="adminDeleteSuggestion('${s.id}')">Suppr.</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+async function adminActionSuggestion(id, status) {
+  try {
+    const res = await fetch(`/api/admin/suggestions/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, adminNote: '' }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error);
+    showToast(status === 'approved' ? '✓ Suggestion approuvée' : '✗ Suggestion rejetée');
+    loadAdminSuggestions();
+  } catch (err) { showToast(err.message, true); }
+}
+
+async function adminDeleteSuggestion(id) {
+  if (!confirm('Supprimer cette suggestion définitivement ?')) return;
+  try {
+    const res = await fetch(`/api/admin/suggestions/${id}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error((await res.json()).error);
+    showToast('Suggestion supprimée');
+    loadAdminSuggestions();
+  } catch (err) { showToast(err.message, true); }
 }
 
 // ── KEYBOARD ──────────────────────────────────────────────────────────────────
