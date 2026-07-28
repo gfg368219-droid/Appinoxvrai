@@ -2,6 +2,10 @@
 const pool = require('./db');
 
 async function migrate() {
+  if (!process.env.DATABASE_URL) {
+    console.log('[migrate] No DATABASE_URL — skipping migration');
+    return;
+  }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -87,11 +91,15 @@ async function migrate() {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('✘ Migration failed:', err.message);
-    process.exit(1);
+    throw err;
   } finally {
     client.release();
-    await pool.end();
   }
 }
 
-migrate();
+module.exports = migrate;
+
+// Run directly: node migrate.js
+if (require.main === module) {
+  migrate().then(() => pool.end()).catch(() => { pool.end(); process.exit(1); });
+}

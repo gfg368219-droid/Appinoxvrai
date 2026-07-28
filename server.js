@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const pool = require('./db');
+const migrate = require('./migrate');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -684,4 +685,11 @@ app.get('*', (req, res) => {
   else res.redirect('/login');
 });
 
-app.listen(PORT, '0.0.0.0', () => console.log(`✦ APPINOX → port ${PORT}`));
+migrate()
+  .then(() => {
+    app.listen(PORT, '0.0.0.0', () => console.log(`✦ APPINOX → port ${PORT}`));
+  })
+  .catch((err) => {
+    console.error('✘ Startup migration failed:', err.message);
+    process.exit(1);
+  });
