@@ -1234,6 +1234,8 @@ function switchModalTab(tab, itemOverride) {
       if (overlay) overlay.style.display = 'none';
       embedFrame.src           = item.videoUrl;
       embedFrame.style.display = 'block';
+      const shield = document.getElementById('embed-shield');
+      if (shield) shield.style.display = '';
     } else {
       embedFrame.style.display = 'none';
       embedFrame.src = '';
@@ -1275,6 +1277,8 @@ function closeModal() {
   if (ytFrame) ytFrame.src = '';
   const embedFrame = document.getElementById('player-embed');
   if (embedFrame) { embedFrame.src = ''; embedFrame.style.display = 'none'; }
+  const shield = document.getElementById('embed-shield');
+  if (shield) shield.style.display = 'none';
   document.getElementById('video-modal').classList.add('modal-hidden');
   document.getElementById('modal-player-area').style.display = '';
   document.getElementById('modal-info-panel').classList.remove('info-expanded');
