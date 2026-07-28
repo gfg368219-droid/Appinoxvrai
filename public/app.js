@@ -1169,21 +1169,24 @@ function switchModalTab(tab, itemOverride) {
   if (progressInterval) { clearInterval(progressInterval); progressInterval = null; }
   isPlaying = false;
 
-  const ytFrame   = document.getElementById('player-yt');
-  const canvas    = document.getElementById('player-canvas');
-  const overlay   = document.getElementById('player-overlay');
-  const playerArea = document.getElementById('modal-player-area');
-  const infoPanel = document.getElementById('modal-info-panel');
+  const ytFrame     = document.getElementById('player-yt');
+  const embedFrame  = document.getElementById('player-embed');
+  const canvas      = document.getElementById('player-canvas');
+  const overlay     = document.getElementById('player-overlay');
+  const playerArea  = document.getElementById('modal-player-area');
+  const infoPanel   = document.getElementById('modal-info-panel');
 
   if (tab === 'info') {
     // Hide player, show only info below
     playerArea.style.display = 'none';
     infoPanel.classList.add('info-expanded');
-    ytFrame.style.display  = 'none';
-    videoEl.style.display  = 'none';
-    canvas.style.display   = 'none';
+    ytFrame.style.display    = 'none';
+    embedFrame.style.display = 'none';
+    videoEl.style.display    = 'none';
+    canvas.style.display     = 'none';
     if (overlay) overlay.style.display = 'none';
     ytFrame.src = '';
+    embedFrame.src = '';
     return;
   }
 
@@ -1191,10 +1194,12 @@ function switchModalTab(tab, itemOverride) {
   infoPanel.classList.remove('info-expanded');
 
   if (tab === 'trailer' && item.trailerUrl) {
-    ytFrame.style.display  = 'block';
-    videoEl.style.display  = 'none';
-    canvas.style.display   = 'none';
+    ytFrame.style.display    = 'block';
+    embedFrame.style.display = 'none';
+    videoEl.style.display    = 'none';
+    canvas.style.display     = 'none';
     if (overlay) overlay.style.display = 'none';
+    embedFrame.src = '';
     const videoId = extractYouTubeId(item.trailerUrl);
     ytFrame.src = videoId ? `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0` : '';
   } else if (tab === 'watch') {
@@ -1202,7 +1207,10 @@ function switchModalTab(tab, itemOverride) {
     ytFrame.style.display = 'none';
     const resume = loadResume();
 
-    if (item.videoUrl) {
+    if (item.videoUrl && isDirectVideoUrl(item.videoUrl)) {
+      // Direct .mp4 / .webm / etc. — use HTML5 <video>
+      embedFrame.style.display = 'none';
+      embedFrame.src = '';
       videoEl.style.display = 'block';
       canvas.style.display  = 'none';
       if (overlay) overlay.style.display = 'none';
@@ -1219,7 +1227,16 @@ function switchModalTab(tab, itemOverride) {
       });
       if (videoEl._saveInterval) clearInterval(videoEl._saveInterval);
       videoEl._saveInterval = setInterval(() => { if (!videoEl.paused && videoEl.currentTime > 3) saveProgress(); }, 5000);
+    } else if (item.videoUrl) {
+      // External embed page (vidzy, etc.) — use generic iframe
+      videoEl.style.display    = 'none';
+      canvas.style.display     = 'none';
+      if (overlay) overlay.style.display = 'none';
+      embedFrame.src           = item.videoUrl;
+      embedFrame.style.display = 'block';
     } else {
+      embedFrame.style.display = 'none';
+      embedFrame.src = '';
       videoEl.style.display = 'none';
       canvas.style.display  = '';
       if (overlay) overlay.style.display = '';
@@ -1238,6 +1255,14 @@ function extractYouTubeId(url) {
   return m ? m[1] : null;
 }
 
+// Returns true if the URL is a direct video file that the <video> tag can play
+function isDirectVideoUrl(url) {
+  if (!url) return false;
+  if (url.startsWith('/videos/')) return true;
+  const clean = url.split('?')[0].split('#')[0].toLowerCase();
+  return /\.(mp4|webm|ogg|ogv|mov|mkv|avi|m3u8)$/.test(clean);
+}
+
 function closeModal() {
   saveProgress();
   const videoEl = document.getElementById('player-video');
@@ -1248,6 +1273,8 @@ function closeModal() {
   }
   const ytFrame = document.getElementById('player-yt');
   if (ytFrame) ytFrame.src = '';
+  const embedFrame = document.getElementById('player-embed');
+  if (embedFrame) { embedFrame.src = ''; embedFrame.style.display = 'none'; }
   document.getElementById('video-modal').classList.add('modal-hidden');
   document.getElementById('modal-player-area').style.display = '';
   document.getElementById('modal-info-panel').classList.remove('info-expanded');

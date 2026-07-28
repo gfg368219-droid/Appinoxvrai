@@ -356,8 +356,8 @@
 
         <!-- Video URL -->
         <div class="form-group full-width">
-          <label class="form-label">URL vidéo <span style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0">(lien direct mp4, Google Drive, etc.)</span></label>
-          <input type="url" id="f-video-url" class="form-input" placeholder="https://…/film.mp4"/>
+          <label class="form-label">URL vidéo <span style="color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:0">(mp4 direct <em>ou</em> page embed — ex : https://vidzy.org/embed-xxx.html)</span></label>
+          <input type="url" id="f-video-url" class="form-input" placeholder="https://vidzy.org/embed-xxx.html  ou  https://…/film.mp4"/>
         </div>
 
         <!-- Actors -->
@@ -441,6 +441,8 @@
     <div class="modal-player" id="modal-player-area">
       <!-- YouTube trailer iframe -->
       <iframe id="player-yt" style="display:none;position:absolute;inset:0;width:100%;height:100%;border:none;z-index:2" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+      <!-- External embed iframe (vidzy, etc.) -->
+      <iframe id="player-embed" style="display:none;position:absolute;inset:0;width:100%;height:100%;border:none;z-index:3;background:#000" allowfullscreen allow="autoplay; encrypted-media; fullscreen; picture-in-picture" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-presentation"></iframe>
       <!-- Real HTML5 video -->
       <video id="player-video" preload="metadata" controlsList="nodownload" style="display:none;position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1"></video>
       <!-- Canvas animation -->
