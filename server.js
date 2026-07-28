@@ -12,8 +12,10 @@ const migrate = require('./migrate');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const VIDEOS_DIR = path.join(__dirname, 'public', 'videos');
-const IMAGES_DIR = path.join(__dirname, 'public', 'images');
+// Vercel (and any read-only serverless env) only allows writes to /tmp
+const WRITABLE_ROOT = process.env.VERCEL ? '/tmp' : __dirname;
+const VIDEOS_DIR = path.join(WRITABLE_ROOT, 'public', 'videos');
+const IMAGES_DIR = path.join(WRITABLE_ROOT, 'public', 'images');
 fs.mkdirSync(VIDEOS_DIR, { recursive: true });
 fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
@@ -124,6 +126,9 @@ app.use('/auth.css',  express.static(path.join(__dirname, 'public', 'auth.css'))
 app.use('/auth.js',   express.static(path.join(__dirname, 'public', 'auth.js')));
 app.use('/style.css', express.static(path.join(__dirname, 'public', 'style.css')));
 app.use('/logo.png',  express.static(path.join(__dirname, 'public', 'logo.png')));
+// Serve uploaded images/videos from writable root (supports /tmp on Vercel)
+app.use('/images', express.static(IMAGES_DIR));
+app.use('/videos', express.static(VIDEOS_DIR));
 
 // ── Auth pages ────────────────────────────────────────────────────────────────
 app.get('/login', (req, res) => {
