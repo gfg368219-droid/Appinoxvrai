@@ -15,6 +15,11 @@ let progressInterval = null;
 let progressPct = 0;
 let isMuted = false;
 
+// ── Anime / Episode state ─────────────────────────────────────────────────────
+let currentEpisodeSeason = 0;
+let currentEpisodeIdx    = 0;
+let currentVersion       = 'vostfr';
+
 // TMDB selected result
 let tmdbSelected = null;
 let tmdbDetail   = null;
@@ -26,8 +31,24 @@ function saveProgress() {
   if (!currentModalId) return;
   const item = CATALOG.find(c => c.id === currentModalId);
   if (!item) return;
-  const videoEl = document.getElementById('player-video');
   const state = { id: currentModalId, title: item.title, savedAt: Date.now() };
+
+  // Anime with seasons — track last episode watched
+  if (item.seasons && item.seasons.length > 0 && currentModalTab === 'watch') {
+    const season = item.seasons[currentEpisodeSeason];
+    const ep     = season?.episodes?.[currentEpisodeIdx];
+    if (!ep) return;
+    state.seasonIdx    = currentEpisodeSeason;
+    state.episodeIdx   = currentEpisodeIdx;
+    state.version      = currentVersion;
+    state.seasonName   = season.name;
+    state.episodeTitle = ep.title || `Épisode ${ep.number}`;
+    state.progressPct  = 5; // mark as started
+    try { localStorage.setItem(RESUME_KEY, JSON.stringify(state)); } catch {}
+    return;
+  }
+
+  const videoEl = document.getElementById('player-video');
   if (item.videoUrl && videoEl && videoEl.currentTime > 3 && isFinite(videoEl.duration)) {
     state.currentTime = videoEl.currentTime;
     state.duration    = videoEl.duration;
@@ -309,7 +330,11 @@ function renderResumeRow() {
   rowEl.style.display = '';
 
   let pct = 0, timeLabel = '';
-  if (resume.currentTime && resume.duration) {
+  if (resume.seasonIdx != null && resume.seasonName) {
+    // Anime episode resume
+    pct = 5;
+    timeLabel = `${resume.seasonName} · ${resume.episodeTitle || 'Épisode ' + (resume.episodeIdx + 1)}`;
+  } else if (resume.currentTime && resume.duration) {
     pct = Math.round((resume.currentTime / resume.duration) * 100);
     timeLabel = formatTime(Math.round(resume.currentTime)) + ' / ' + formatTime(Math.round(resume.duration));
   } else if (resume.progressPct) {
@@ -366,7 +391,7 @@ function renderHero() {
 
   const communityRating = featured.communityRating;
   area.innerHTML = `
-    <div class="hero-badge"><span class="badge-icon">◆</span> ${featured.type === 'serie' ? 'SÉRIE' : 'FILM'} · ${featured.audio}</div>
+    <div class="hero-badge"><span class="badge-icon">◆</span> ${featured.type === 'serie' ? 'SÉRIE' : featured.type === 'anime' ? 'ANIME' : 'FILM'} · ${featured.audio}</div>
     <h1 class="hero-title">${featured.title}</h1>
     <div class="hero-meta">
       ${communityRating ? `<span class="rating">${renderStarsSmall(communityRating.avg)} ${communityRating.avg}/5 <span style="color:var(--text-dim);font-size:11px">(${communityRating.count})</span></span>` : ''}
@@ -407,14 +432,21 @@ function renderRows() {
 
   const recent = [...CATALOG].reverse().slice(0, 12);
 
+  const animeItems = CATALOG.filter(c => c.type === 'anime');
+
   renderRow('trending-track', trending);
   renderRow('recent-track', recent);
+  renderRow('anime-home-track', animeItems.slice(0, 20));
 
-  document.getElementById('row-trending').style.display = trending.length ? '' : 'none';
-  document.getElementById('row-recent').style.display   = recent.length  ? '' : 'none';
+  document.getElementById('row-trending').style.display   = trending.length    ? '' : 'none';
+  document.getElementById('row-recent').style.display     = recent.length      ? '' : 'none';
+  document.getElementById('row-anime-home').style.display = animeItems.length  ? '' : 'none';
 
   renderGrid('movies-grid', CATALOG.filter(c => c.type === 'film' || c.type === 'court-metrage' || c.type === 'documentaire'));
   renderGrid('series-grid', CATALOG.filter(c => c.type === 'serie'));
+  renderGrid('anime-grid', animeItems);
+  const emptyAnime = document.getElementById('anime-empty');
+  if (emptyAnime) emptyAnime.classList.toggle('hidden', animeItems.length > 0);
 }
 
 function renderRow(trackId, items) {
@@ -558,7 +590,7 @@ async function renderMyList() {
 
 // ── SECTIONS ──────────────────────────────────────────────────────────────────
 function showSection(name, linkEl) {
-  ['home','movies','series','mylist','admin'].forEach(s => {
+  ['home','movies','series','anime','mylist','admin'].forEach(s => {
     const el = document.getElementById(`section-${s}`);
     if (el) el.classList.add('hidden');
   });
@@ -568,6 +600,7 @@ function showSection(name, linkEl) {
   document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
   if (linkEl) linkEl.classList.add('active');
   if (name === 'mylist') renderMyList();
+  if (name === 'anime')  renderGrid('anime-grid', CATALOG.filter(c => c.type === 'anime'));
   if (name === 'admin')  { loadAdminData(); loadAdminSuggestions(); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -576,7 +609,7 @@ function showSection(name, linkEl) {
 async function loadAdminData() {
   document.getElementById('stat-content').textContent = CATALOG.length;
   document.getElementById('stat-films').textContent   = CATALOG.filter(c => c.type === 'film' || c.type === 'documentaire' || c.type === 'court-metrage').length;
-  document.getElementById('stat-series').textContent  = CATALOG.filter(c => c.type === 'serie').length;
+  document.getElementById('stat-series').textContent  = CATALOG.filter(c => c.type === 'serie' || c.type === 'anime').length;
 
   try {
     const res  = await fetch('/api/admin/users');
@@ -1141,14 +1174,19 @@ async function openModal(id) {
   } catch {}
 
   // Show tabs based on what's available
-  const hasTrailer = !!item.trailerUrl;
-  const hasVideo   = !!item.videoUrl;
+  const hasTrailer  = !!item.trailerUrl;
+  const hasVideo    = !!item.videoUrl;
+  const hasSeasons  = !!(item.seasons && item.seasons.length);
   document.getElementById('tab-trailer').style.display = hasTrailer ? '' : 'none';
-  document.getElementById('tab-watch').style.display   = hasVideo   ? '' : 'none';
+  document.getElementById('tab-watch').style.display   = (hasVideo || hasSeasons) ? '' : 'none';
+
+  // Init episode picker (before switching tab so state is ready)
+  if (hasSeasons) initEpisodePicker(item);
+  else document.getElementById('episode-picker').style.display = 'none';
 
   // Default tab
   if (hasTrailer) switchModalTab('trailer', item);
-  else if (hasVideo) switchModalTab('watch', item);
+  else if (hasVideo || hasSeasons) switchModalTab('watch', item);
   else switchModalTab('info', item);
 }
 
@@ -1206,6 +1244,28 @@ function switchModalTab(tab, itemOverride) {
     ytFrame.src = '';
     ytFrame.style.display = 'none';
     const resume = loadResume();
+
+    // ── Anime with seasons ────────────────────────────────────────────────────
+    if (item.seasons && item.seasons.length) {
+      const url = getEpisodeUrl(item, currentEpisodeSeason, currentEpisodeIdx, currentVersion);
+      videoEl.style.display = 'none';
+      canvas.style.display  = 'none';
+      if (overlay) overlay.style.display = 'none';
+      if (url) {
+        embedFrame.src           = url;
+        embedFrame.style.display = 'block';
+        const shield = document.getElementById('embed-shield');
+        if (shield) shield.style.display = '';
+      } else {
+        embedFrame.style.display = 'none';
+        embedFrame.src = '';
+      }
+      // Show resume toast for anime
+      if (resume && resume.id === currentModalId && resume.seasonIdx != null) {
+        showToast(`Reprise : ${resume.seasonName} · ${resume.episodeTitle || 'Épisode ' + (resume.episodeIdx + 1)}`);
+      }
+      return;
+    }
 
     if (item.videoUrl && isDirectVideoUrl(item.videoUrl)) {
       // Direct .mp4 / .webm / etc. — use HTML5 <video>
@@ -1279,6 +1339,7 @@ function closeModal() {
   if (embedFrame) { embedFrame.src = ''; embedFrame.style.display = 'none'; }
   const shield = document.getElementById('embed-shield');
   if (shield) shield.style.display = 'none';
+  document.getElementById('episode-picker').style.display = 'none';
   document.getElementById('video-modal').classList.add('modal-hidden');
   document.getElementById('modal-player-area').style.display = '';
   document.getElementById('modal-info-panel').classList.remove('info-expanded');
@@ -1287,6 +1348,7 @@ function closeModal() {
   if (playerRaf) cancelAnimationFrame(playerRaf);
   if (progressInterval) clearInterval(progressInterval);
   playerRaf = null; progressInterval = null; currentModalId = null;
+  currentEpisodeSeason = 0; currentEpisodeIdx = 0;
   renderResumeRow();
 }
 
@@ -1594,6 +1656,148 @@ async function adminDeleteSuggestion(id) {
     showToast('Suggestion supprimée');
     loadAdminSuggestions();
   } catch (err) { showToast(err.message, true); }
+}
+
+// ── ANIME ENGINE ──────────────────────────────────────────────────────────────
+
+function getEpisodeUrl(item, seasonIdx, epIdx, version) {
+  const ep = item.seasons?.[seasonIdx]?.episodes?.[epIdx];
+  if (!ep) return null;
+  return ep[version] || ep.vostfr || ep.vf || null;
+}
+
+function initEpisodePicker(item) {
+  const picker = document.getElementById('episode-picker');
+  if (!item.seasons || !item.seasons.length) { picker.style.display = 'none'; return; }
+
+  // Detect available versions
+  const hasVF     = item.seasons.some(s => s.episodes.some(e => e.vf));
+  const hasVOSTFR = item.seasons.some(s => s.episodes.some(e => e.vostfr));
+
+  // Restore or set default version
+  const resume = loadResume();
+  if (resume && resume.id === item.id && resume.seasonIdx != null) {
+    currentEpisodeSeason = resume.seasonIdx  || 0;
+    currentEpisodeIdx    = resume.episodeIdx || 0;
+    currentVersion       = resume.version    || (hasVOSTFR ? 'vostfr' : 'vf');
+  } else {
+    currentEpisodeSeason = 0;
+    currentEpisodeIdx    = 0;
+    currentVersion       = hasVOSTFR ? 'vostfr' : 'vf';
+  }
+
+  // Version toggle
+  const verRow    = document.getElementById('ep-version-row');
+  const btnVF     = document.getElementById('btn-vf');
+  const btnVOSTFR = document.getElementById('btn-vostfr');
+  if (hasVF && hasVOSTFR) {
+    verRow.style.display = '';
+    btnVF.classList.toggle('active',     currentVersion === 'vf');
+    btnVOSTFR.classList.toggle('active', currentVersion === 'vostfr');
+  } else {
+    verRow.style.display = 'none';
+  }
+
+  // Season selector
+  const seasonRow    = document.getElementById('ep-season-row');
+  const seasonSelect = document.getElementById('season-select');
+  if (item.seasons.length > 1) {
+    seasonRow.style.display = '';
+    seasonSelect.innerHTML  = item.seasons.map((s, i) =>
+      `<option value="${i}" ${i === currentEpisodeSeason ? 'selected' : ''}>${s.name}</option>`
+    ).join('');
+  } else {
+    seasonRow.style.display = 'none';
+  }
+
+  renderEpisodeList(item);
+  picker.style.display = '';
+}
+
+function renderEpisodeList(item) {
+  const listEl = document.getElementById('episode-list');
+  if (!listEl) return;
+  const season = item.seasons[currentEpisodeSeason];
+  if (!season) { listEl.innerHTML = ''; return; }
+
+  listEl.innerHTML = season.episodes.map((ep, i) => {
+    const isActive = (i === currentEpisodeIdx);
+    const url      = getEpisodeUrl(item, currentEpisodeSeason, i, currentVersion);
+    return `<button
+      class="ep-item${isActive ? ' active' : ''}${!url ? ' unavailable' : ''}"
+      onclick="selectEpisode(${currentEpisodeSeason},${i})"
+      ${!url ? 'disabled' : ''}
+      title="${(ep.title || 'Épisode ' + ep.number).replace(/"/g,'&quot;')}"
+    ><span class="ep-num">${ep.number}</span><span class="ep-lbl">${ep.title || 'Ép. ' + ep.number}</span></button>`;
+  }).join('');
+
+  setTimeout(() => {
+    const active = listEl.querySelector('.ep-item.active');
+    if (active) active.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }, 80);
+}
+
+function setVersion(v) {
+  currentVersion = v;
+  document.getElementById('btn-vf')?.classList.toggle('active',     v === 'vf');
+  document.getElementById('btn-vostfr')?.classList.toggle('active', v === 'vostfr');
+  const item = CATALOG.find(c => c.id === currentModalId);
+  if (!item) return;
+  renderEpisodeList(item);
+  const url = getEpisodeUrl(item, currentEpisodeSeason, currentEpisodeIdx, v);
+  if (url) loadEpisodeInPlayer(url);
+}
+
+function onSeasonChange(seasonIdx) {
+  currentEpisodeSeason = parseInt(seasonIdx);
+  currentEpisodeIdx    = 0;
+  const item = CATALOG.find(c => c.id === currentModalId);
+  if (!item) return;
+  renderEpisodeList(item);
+  const url = getEpisodeUrl(item, currentEpisodeSeason, 0, currentVersion);
+  if (url) loadEpisodeInPlayer(url);
+  saveProgress();
+}
+
+function selectEpisode(seasonIdx, epIdx) {
+  currentEpisodeSeason = seasonIdx;
+  currentEpisodeIdx    = epIdx;
+  const item = CATALOG.find(c => c.id === currentModalId);
+  if (!item) return;
+  document.querySelectorAll('.ep-item').forEach((btn, i) =>
+    btn.classList.toggle('active', i === epIdx)
+  );
+  const url = getEpisodeUrl(item, seasonIdx, epIdx, currentVersion);
+  if (url) loadEpisodeInPlayer(url);
+  saveProgress();
+  const ep = item.seasons[seasonIdx]?.episodes?.[epIdx];
+  if (ep) showToast(`${item.seasons[seasonIdx].name} · ${ep.title || 'Épisode ' + ep.number}`);
+}
+
+function loadEpisodeInPlayer(url) {
+  const embedFrame = document.getElementById('player-embed');
+  const ytFrame    = document.getElementById('player-yt');
+  const videoEl    = document.getElementById('player-video');
+  const canvas     = document.getElementById('player-canvas');
+  const overlay    = document.getElementById('player-overlay');
+  const playerArea = document.getElementById('modal-player-area');
+  const shield     = document.getElementById('embed-shield');
+
+  playerArea.style.display = '';
+  ytFrame.src = '';
+  ytFrame.style.display    = 'none';
+  videoEl.style.display    = 'none';
+  canvas.style.display     = 'none';
+  if (overlay) overlay.style.display = 'none';
+  embedFrame.src           = url;
+  embedFrame.style.display = 'block';
+  if (shield) shield.style.display = '';
+
+  // Mark watch tab active
+  currentModalTab = 'watch';
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-watch')?.classList.add('active');
+  document.getElementById('modal-info-panel')?.classList.remove('info-expanded');
 }
 
 // ── KEYBOARD ──────────────────────────────────────────────────────────────────

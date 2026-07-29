@@ -56,8 +56,13 @@ async function migrate() {
         video_url   TEXT,
         actors      JSONB       NOT NULL DEFAULT '[]',
         rows        JSONB       NOT NULL DEFAULT '[]',
+        seasons     JSONB       NOT NULL DEFAULT '[]',
         added_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
+    `);
+    // Migration: add seasons column if it doesn't exist yet
+    await client.query(`
+      ALTER TABLE catalog ADD COLUMN IF NOT EXISTS seasons JSONB NOT NULL DEFAULT '[]'
     `);
 
     // ── Ratings ───────────────────────────────────────────────────────────────

@@ -80,6 +80,7 @@ function rowToCatalog(r) {
     videoUrl: r.video_url,
     actors: r.actors || [],
     rows: r.rows || [],
+    seasons: r.seasons || [],
     addedAt: r.added_at,
     communityRating: (r.community_avg != null)
       ? { avg: parseFloat(r.community_avg), count: parseInt(r.community_count) || 0 }
@@ -529,19 +530,24 @@ app.post('/api/admin/content', requireAuth, requireAdmin, uploadImage.none(), as
     }
     const parsedRows = Array.isArray(rows) ? rows : (rows ? [rows] : []);
 
+    let parsedSeasons = [];
+    if (req.body.seasons) {
+      try { parsedSeasons = typeof req.body.seasons === 'string' ? JSON.parse(req.body.seasons) : req.body.seasons; } catch {}
+    }
+
     const id = 'c-' + uuidv4().slice(0, 8);
     await pool.query(
       `INSERT INTO catalog
          (id, title, genre, type, duration, year, audio, quality, description,
-          trailer_url, poster_url, video_url, actors, rows)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+          trailer_url, poster_url, video_url, actors, rows, seasons)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
       [
         id, title.trim(), genre.trim(), type,
         duration?.trim() || null,
         parseInt(year) || new Date().getFullYear(),
         audio, quality || null, (description || '').trim(),
         trailerUrl?.trim() || null, posterUrl?.trim() || null, videoUrl?.trim() || null,
-        JSON.stringify(parsedActors), JSON.stringify(parsedRows),
+        JSON.stringify(parsedActors), JSON.stringify(parsedRows), JSON.stringify(parsedSeasons),
       ]
     );
     const catalog = await getCatalogWithRatings();
@@ -559,7 +565,7 @@ app.patch('/api/admin/content/:id', requireAuth, requireAdmin, async (req, res) 
     if (!existingRows.length) return res.status(404).json({ error: 'Contenu non trouvé' });
     const cur = existingRows[0];
 
-    const { rows: updRows, actors: updActors, ...rest } = req.body;
+    const { rows: updRows, actors: updActors, seasons: updSeasons, ...rest } = req.body;
 
     const parsedRows = updRows !== undefined
       ? (Array.isArray(updRows) ? updRows : (updRows ? [updRows] : []))
@@ -570,12 +576,17 @@ app.patch('/api/admin/content/:id', requireAuth, requireAdmin, async (req, res) 
       try { parsedActors = typeof updActors === 'string' ? JSON.parse(updActors) : updActors; } catch {}
     }
 
+    let parsedSeasons = cur.seasons || [];
+    if (updSeasons !== undefined) {
+      try { parsedSeasons = typeof updSeasons === 'string' ? JSON.parse(updSeasons) : updSeasons; } catch {}
+    }
+
     await pool.query(
       `UPDATE catalog SET
          title=$1, genre=$2, type=$3, duration=$4, year=$5, audio=$6, quality=$7,
          description=$8, trailer_url=$9, poster_url=$10, video_url=$11,
-         actors=$12, rows=$13
-       WHERE id=$14`,
+         actors=$12, rows=$13, seasons=$14
+       WHERE id=$15`,
       [
         rest.title       ?? cur.title,
         rest.genre       ?? cur.genre,
@@ -590,6 +601,7 @@ app.patch('/api/admin/content/:id', requireAuth, requireAdmin, async (req, res) 
         rest.videoUrl    ?? cur.video_url,
         JSON.stringify(parsedActors),
         JSON.stringify(parsedRows),
+        JSON.stringify(parsedSeasons),
         req.params.id,
       ]
     );

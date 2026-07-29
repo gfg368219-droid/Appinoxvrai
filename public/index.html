@@ -36,6 +36,7 @@
         <li><a href="#" class="active" onclick="showSection('home',this);return false">Accueil</a></li>
         <li><a href="#" onclick="showSection('movies',this);return false">Films</a></li>
         <li><a href="#" onclick="showSection('series',this);return false">Séries</a></li>
+        <li><a href="#" onclick="showSection('anime',this);return false">Anime</a></li>
         <li><a href="#" onclick="showSection('mylist',this);return false">Ma Liste</a></li>
       </ul>
     </div>
@@ -158,6 +159,21 @@
           <button class="scroll-btn scroll-right" onclick="scrollRow('recent-track',1)">&#8250;</button>
         </div>
       </section>
+
+      <section class="content-row" id="row-anime-home" style="display:none">
+        <div class="row-header">
+          <h2 class="row-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="row-icon" style="color:#ff6b9d"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 12s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            Anime
+          </h2>
+          <a href="#" onclick="showSection('anime',null);return false" class="row-see-all">Voir tout →</a>
+        </div>
+        <div class="cards-wrapper">
+          <button class="scroll-btn scroll-left" onclick="scrollRow('anime-home-track',-1)">&#8249;</button>
+          <div class="cards-track" id="anime-home-track"></div>
+          <button class="scroll-btn scroll-right" onclick="scrollRow('anime-home-track',1)">&#8250;</button>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -177,6 +193,19 @@
       <p>Toutes les séries disponibles sur APPINOX</p>
     </div>
     <div class="section-grid" id="series-grid"></div>
+  </div>
+
+  <!-- ANIME -->
+  <div id="section-anime" class="hidden section-page">
+    <div class="section-header">
+      <h1><em>Anime</em></h1>
+      <p>Tous les animes disponibles sur APPINOX — VF &amp; VOSTFR</p>
+    </div>
+    <div class="section-grid" id="anime-grid"></div>
+    <div id="anime-empty" class="empty-state hidden">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="empty-svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 12s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+      <p>Aucun anime disponible pour le moment.</p>
+    </div>
   </div>
 
   <!-- MA LISTE -->
@@ -280,6 +309,7 @@
               <option value="">— Choisir —</option>
               <option value="film">Film</option>
               <option value="serie">Série</option>
+              <option value="anime">Anime</option>
               <option value="documentaire">Documentaire</option>
               <option value="court-metrage">Court-métrage</option>
             </select>
@@ -305,6 +335,7 @@
               <option value="">— Choisir —</option>
               <option value="VO">VO — Version Originale</option>
               <option value="VOSTF">VOSTF — VO sous-titrée</option>
+              <option value="VOSTFR">VOSTFR — VO sous-titrée FR</option>
               <option value="VF">VF — Version Française</option>
               <option value="VFF">VFF — VF Française de France</option>
               <option value="VFQ">VFQ — VF Québécoise</option>
@@ -522,6 +553,21 @@
         <div id="modal-actors-wrap" class="modal-actors-wrap" style="display:none">
           <div class="modal-actors-title">Acteurs</div>
           <div id="modal-actors-list" class="modal-actors-list"></div>
+        </div>
+
+        <!-- Episode picker (anime avec saisons) -->
+        <div id="episode-picker" class="episode-picker" style="display:none">
+          <div class="ep-header">
+            <div class="ep-version-row" id="ep-version-row" style="display:none">
+              <span class="ep-ver-label">Version :</span>
+              <button id="btn-vf" class="ep-ver-btn" onclick="setVersion('vf')">VF</button>
+              <button id="btn-vostfr" class="ep-ver-btn" onclick="setVersion('vostfr')">VOSTFR</button>
+            </div>
+            <div class="ep-season-row" id="ep-season-row" style="display:none">
+              <select id="season-select" class="ep-season-select" onchange="onSeasonChange(parseInt(this.value))"></select>
+            </div>
+          </div>
+          <div id="episode-list" class="ep-list"></div>
         </div>
       </div>
       <div class="modal-actions">
